@@ -46,7 +46,7 @@ exports.makeFunctions = false
 /* More bytes in a TypedArray than typedArrayPackThreshold will trigger
  * the code to prepare these into strings rather than arrays.
  */
-exports.typedArrayPackThreshold = 20
+exports.typedArrayPackThreshold = 4
 
 const littleEndian = (function () {
   let ui16 = new Uint16Array(1)
@@ -165,7 +165,7 @@ function unprepare$ArrayBuffer (po) {
   for (let i = 0; i < po.arrbuf.length; i++) {
     i16[i] = po.arrbuf.charCodeAt(i)
   }
-  i8 = new Int8Array(i16, 0, bytes)
+  i8 = new Int8Array(i16.buffer, 0, bytes)
   if (po.hasOwnProperty('extraByte')) {
     i8[i8.byteLength - 1] = po.extraByte.charCodeAt(0)
   }
@@ -178,7 +178,7 @@ function unprepare$ArrayBuffer (po) {
     }
   }
 
-  return new (eval(po.ctor))(i8) // eslint-disable-line
+  return new (eval(po.ctor))(i8.buffer) // eslint-disable-line
 }
 
 /** Take an arbitrary object and turn it into a 'prepared object'.
@@ -203,7 +203,7 @@ function prepare (seen, o) {
    * don't need to iterate over their properties in order to
    * serialize them.
    */
-  if (o === null || Array.isArray(o) || typeof o.toJSON !== 'undefined') {
+  if (o === null || Array.isArray(o) || typeof o === 'undefined' || typeof o.toJSON !== 'undefined') {
     return prepare$primitive(o)
   }
   if (ArrayBuffer.isView(o)) {
@@ -227,7 +227,8 @@ function prepare (seen, o) {
       case 'function':
       case 'object':
         if (o[prop] !== null && typeof o[prop].toJSON === 'undefined') {
-          if (o[prop].constructor !== Object && o[prop].constructor.constructor !== Object) {
+          if (o[prop].constructor !== Object && o[prop].constructor.constructor !== Object &&
+              o[prop].constructor !== Function && o[prop].constructor.constructor !== Function) {
             throw new Error('Cannot serialize property ' + prop + ' - multiple inheritance is not supported')
           }
           if ((i = seen.indexOf(o[prop])) === -1) {
