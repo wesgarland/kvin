@@ -31,16 +31,37 @@
  *  @date       June 2018
  */
 
-/* Set exports.makeFunctions = true to allow deserializer to make functions.
+require('bravojs/utility/cjs2-node')
+
+/* eslint-disable indent */ module.declare([], function (require, exports, module) {
+/*
+ * Set exports.makeFunctions = true to allow deserializer to make functions.
  * If the deserializer can make functions, it is equivalent to eval() from a
  * security POV.  Otherwise, the deserializer will turn functions into boxed
  * strings containing the function's source code, having a name property that
  * matches the original function.
  */
 exports.makeFunctions = false
-exports.serialize = serialize
-exports.deserialize = deserialize
 
+/* More bytes in a TypedArray than typedArrayPackThreshold will trigger
+ * the code to prepare these into strings rather than arrays.
+ */
+exports.typedArrayPackThreshold = 20
+
+const littleEndian = (function () {
+  let ui16 = new Uint16Array(1)
+  let ui8
+
+  ui16[0] = 0xffef
+  ui8 = new Uint8Array(ui16.buffer)
+
+  if (ui8[0] === 0x0ff) {
+    console.log('Detected big-endian platform')
+    return false
+  }
+
+  return true
+})()
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
  *
@@ -52,8 +73,17 @@ exports.deserialize = deserialize
  *  @returns    the value encoded by po
  */
 function unprepare (seen, po, position) {
+  if (po.hasOwnProperty('ctor') && !po.ctor.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
+    if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
+      throw new Error('Whitelist does not include constructor ' + po.ctr)
+    }
+    throw new Error('Invalid constructor name: ' + po.ctr)
+  }
   if (po.hasOwnProperty('fnName')) {
     return unprepare$function(seen, po, position)
+  }
+  if (po.hasOwnProperty('arrbuf')) {
+    return unprepare$ArrayBuffer(po)
   }
   if (po.hasOwnProperty('ctor')) {
     return unprepare$object(seen, po, position)
@@ -76,12 +106,6 @@ function unprepare (seen, po, position) {
 function unprepare$object (seen, po, position) {
   let o
 
-  if (!po.ctor.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
-    throw new Error('Invalid constructor name: ' + po.ctr)
-  }
-  if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
-    throw new Error('Whitelist does not include constructor ' + po.ctr)
-  }
   if (po.hasOwnProperty('ctorArg')) {
     o = new (eval(po.ctor))(po.ctorArg) // eslint-disable-line
   } else {
@@ -123,6 +147,38 @@ function unprepare$function (seen, po, position) {
   }
 
   return fn
+}
+
+/** The arrbuf encoding encodes TypedArrays and related types by converting
+ *  them to strings full of binary data in 16-bit words. Buffers with an
+ *  odd number of bytes encode an extraByte at the end by itself.
+ */
+function unprepare$ArrayBuffer (po) {
+  let i16, i8, words
+  let bytes = po.arrbuf.length * 2
+
+  if (po.hasOwnProperty('extraByte')) {
+    bytes++
+  }
+  words = Math.floor(bytes / 2) + (bytes % 2)
+  i16 = new Int16Array(words)
+  for (let i = 0; i < po.arrbuf.length; i++) {
+    i16[i] = po.arrbuf.charCodeAt(i)
+  }
+  i8 = new Int8Array(i16, 0, bytes)
+  if (po.hasOwnProperty('extraByte')) {
+    i8[i8.byteLength - 1] = po.extraByte.charCodeAt(0)
+  }
+
+  if (!littleEndian) {
+    for (let i = 0; i < i8.length; i += 2) {
+      i8[(i * 2) + 0] = i8[(i * 2) + 0] ^ i8[(i * 2) + 1]
+      i8[(i * 2) + 1] = i8[(i * 2) + 1] ^ i8[(i * 2) + 0]
+      i8[(i * 2) + 0] = i8[(i * 2) + 0] ^ i8[(i * 2) + 1]
+    }
+  }
+
+  return new (eval(po.ctor))(i8) // eslint-disable-line
 }
 
 /** Take an arbitrary object and turn it into a 'prepared object'.
@@ -202,9 +258,35 @@ function prepare (seen, o) {
   return ret
 }
 
+/** @seen unprepare$ArrayBuffer */
 function prepare$ArrayBuffer (o) {
-  // alt impl: return { ctor: o.constructor.name, ctorArg: o.length, props: o }
-  return { ctor: o.constructor.name, ctorArg: Array.prototype.slice.call(o) }
+  if (o.byteLength < exports.typedArrayPackThreshold) { /* Small enough to use fast code */
+    // alt impl: return { ctor: o.constructor.name, ctorArg: o.length, props: o }
+    return { ctor: o.constructor.name, ctorArg: Array.prototype.slice.call(o) }
+  }
+  let ret = { ctor: o.constructor.name }
+  let nWords = Math.floor(o.byteLength / 2)
+  let s = ''
+
+  if (littleEndian) {
+    let ui16 = new Uint16Array(o.buffer, 0, nWords)
+    for (let i = 0; i < nWords; i++) {
+      s += String.fromCharCode(ui16[i])
+    }
+  } else {
+    let ui8 = new Uint8Array(o.buffer)
+    for (let i = 0; i < nWords; i++) {
+      s += String.fromCharCode((ui8[0 + (2 * i)] << 8) + (ui8[1 + (2 * i)]))
+    }
+  }
+
+  ret.arrbuf = s
+  if ((2 * nWords) !== o.byteLength) {
+    let ui8 = new Uint8Array(o.buffer, o.buffer.byteLength - 1, 1)
+    ret.extraByte = ui8[0]
+  }
+
+  return ret
 }
 
 function prepare$RegExp (o) {
@@ -254,3 +336,7 @@ function serialize (what) {
 function deserialize (str) {
   return unprepare([], JSON.parse(str), 'top')
 }
+
+exports.serialize = serialize
+exports.deserialize = deserialize
+/* end of module */ })
