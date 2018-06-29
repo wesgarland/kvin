@@ -27,11 +27,25 @@
  *                                      cycles in less-common interpreters, such as Rhino and (especially)
  *                                      the NJS/NGS ES3 platform by Brian Basset.
  *
+ *  @note       It is important to keep this module free of external dependencies, so that it
+ *              can be easily injected into workers without module loaders during application
+ *              bootstrapping / debugging.
+ *
  *  @author     Wes Garland, wes@page.ca
  *  @date       June 2018
  */
 
-require('bravojs/utility/cjs2-node')
+/* This prologue allows a module.declare module's exports to be loaded with eval(readFileSync(filename)) */
+var module, _md;
+if (typeof module === "undefined" || typeof module.declare === "undefined") {
+  _md = (typeof module === "object") ? module.declare : null
+  if (typeof module !== "object")
+    module = { exports: {} };
+    module.declare = function moduleUnWrapper(deps, factory) {
+    factory(null, module.exports, module)
+    return module.exports
+  }
+}
 
 /* eslint-disable indent */ module.declare([], function (require, exports, module) {
 /*
@@ -199,12 +213,16 @@ function prepare (seen, o) {
     return { seen: i }
   }
 
-  /* Find objects which behave almost as primitives -- i.e. we
-   * don't need to iterate over their properties in order to
-   * serialize them.
+  /* Find primitives and objects which behave almost as primitives -- i.e. 
+   * we don't need to iterate over their properties in order to
+   * serialize them. Treat these as terminals.
    */
-  if (o === null || Array.isArray(o) || typeof o === 'undefined' || typeof o.toJSON !== 'undefined') {
+  if (o === null || Array.isArray(o) || (typeof o === "object" && typeof o.toJSON !== 'undefined')
+      || typeof o === "string" || typeof o === "boolean" || typeof o === "number") {
     return prepare$primitive(o)
+  }
+  if (typeof o === 'undefined') {
+    return prepare$undefined(o)
   }
   if (ArrayBuffer.isView(o)) {
     return prepare$ArrayBuffer(o)
@@ -306,38 +324,38 @@ function prepare$undefined (o) {
   return { undefined: true }
 }
 
+/** Prepare a value for serialization
+ *  @param      what any (supported) js value
+ *  @returns    an object which can be serialized with json
+ */
+exports.prepare = function serialize$$prepare (what) {
+  return prepare([], what);
+}
+
+/** Turn a prepared value back into its original form 
+ *  @param      obj     a prepared object 
+ *  @returns    object  an object resembling the object originally passed to exports.prepare()
+ */
+exports.unprepare = function serialize$$unprepare (obj) {
+  return unprepare([], obj, 'top')
+}
+
 /** Serialize a value.
  *  @param      what    The value to serialize
  *  @returns    The JSON serialization of the prepared object representing what.
  */
-function serialize (what) {
-  var prepared
-
-  switch (typeof what) {
-    case 'string':
-    case 'number':
-    case 'boolean':
-      prepared = prepare$primitive(what)
-      break
-    case 'undefined':
-      prepared = prepare$undefined(what)
-      break
-    default:
-    case 'object':
-      prepared = prepare([], what)
-  }
-
-  return JSON.stringify(prepared)
+exports.serialize = function serialize (what) {
+  return JSON.stringify(exports.prepare(what))
 }
 
 /** Deserialize a value.
  *  @param      str     The JSON serialization of the prepared object representing the value.
  *  @returns    The deserialized value
  */
-function deserialize (str) {
-  return unprepare([], JSON.parse(str), 'top')
+exports.deserialize = function deserialize (str) {
+  return exports.unprepare(JSON.parse(str))
 }
 
-exports.serialize = serialize
-exports.deserialize = deserialize
+if (_md)
+  module.declare = _md;
 /* end of module */ })
