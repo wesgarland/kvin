@@ -203,7 +203,7 @@ function unprepare$ArrayBuffer (po) {
  *  @param      o       The object that the prepared object reflects
  *  @returns            A prepared object
  */
-function prepare (seen, o) {
+function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
@@ -219,7 +219,7 @@ function prepare (seen, o) {
    */
   if (o === null || Array.isArray(o) || (typeof o === "object" && typeof o.toJSON !== 'undefined')
       || typeof o === "string" || typeof o === "boolean" || typeof o === "number") {
-    return prepare$primitive(o)
+    return prepare$primitive(o, where)
   }
   if (typeof o === 'undefined') {
     return prepare$undefined(o)
@@ -234,23 +234,30 @@ function prepare (seen, o) {
     return prepare$RegExp(o)
   }
 
+  if (typeof o.hasOwnProperty === 'undefined') {
+    console.log('Warning: ' + where + ' is missing .hasOwnProperty -- skipping')
+    return prepare$undefined(o)
+  }
+
   /* Iterate over the properties and prepare each in turn, recursing
    * with a depth-first traversal of the object graph. Iteration order
    * must match unprepare()!
    */
   for (let prop in o) {
-    if (!o.hasOwnProperty(prop)) { continue }
+    if (!o.hasOwnProperty(prop)) { 
+      continue 
+    }
 
     switch (typeof o[prop]) {
       case 'function':
       case 'object':
         if (o[prop] !== null && typeof o[prop].toJSON === 'undefined') {
-          if (o[prop].constructor !== Object && o[prop].constructor.constructor !== Object &&
+          if (typeof o[prop].constructor !== "undefined" && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object &&
               o[prop].constructor !== Function && o[prop].constructor.constructor !== Function) {
             throw new Error('Cannot serialize property ' + prop + ' - multiple inheritance is not supported')
           }
           if ((i = seen.indexOf(o[prop])) === -1) {
-            po[prop] = prepare(seen, o[prop])
+            po[prop] = prepare(seen, o[prop], where + "." + prop)
           } else {
             po[prop] = { seen: i }
           }
@@ -259,7 +266,7 @@ function prepare (seen, o) {
       case 'number':
       case 'boolean':
       case 'string':
-        po[prop] = prepare$primitive(o[prop])
+        po[prop] = prepare$primitive(o[prop], where + "." + prop)
         break
       case 'undefined':
         po[prop] = prepare$undefined(o[prop])
@@ -316,8 +323,13 @@ function prepare$boxedPrimitive (o) {
   return { ctor: o.constructor.name, ctorArg: o.toString() }
 }
 
-function prepare$primitive (o) {
-  return { json: JSON.stringify(o) }
+function prepare$primitive (o, where) {
+  try {
+    return { json: JSON.stringify(o) }
+  } catch (e) {
+    let e2 = new (e.constructor)(e.message + " for " + where)
+    throw e2
+  }
 }
 
 function prepare$undefined (o) {
@@ -329,7 +341,7 @@ function prepare$undefined (o) {
  *  @returns    an object which can be serialized with json
  */
 exports.prepare = function serialize$$prepare (what) {
-  return prepare([], what);
+  return prepare([], what, 'top');
 }
 
 /** Turn a prepared value back into its original form 
