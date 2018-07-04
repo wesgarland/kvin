@@ -93,6 +93,9 @@ function unprepare (seen, po, position) {
     }
     throw new Error('Invalid constructor name: ' + po.ctr)
   }
+  if (po.hasOwnProperty('primitive')) {
+    return po.primitive
+  }
   if (po.hasOwnProperty('fnName')) {
     return unprepare$function(seen, po, position)
   }
@@ -114,7 +117,7 @@ function unprepare (seen, po, position) {
     }
     return seen[po.seen]
   }
-  throw new TypeError('Invalid serialization format at ' + position)
+  throw new TypeError('Invalid preparation formula at ' + position)
 }
 
 function unprepare$object (seen, po, position) {
@@ -323,9 +326,10 @@ function prepare$boxedPrimitive (o) {
   return { ctor: o.constructor.name, ctorArg: o.toString() }
 }
 
-function prepare$primitive (o, where) {
+/* Store primitives an sort-of-primitives (like object literals) directly */
+function prepare$primitive (primitive, where) {
   try {
-    return { json: JSON.stringify(o) }
+    return { primitive: primitive }
   } catch (e) {
     let e2 = new (e.constructor)(e.message + " for " + where)
     throw e2
@@ -341,7 +345,7 @@ function prepare$undefined (o) {
  *  @returns    an object which can be serialized with json
  */
 exports.prepare = function serialize$$prepare (what) {
-  return prepare([], what, 'top');
+  return {_serializeVerId: 'v1', what: prepare([], what, 'top')}
 }
 
 /** Turn a prepared value back into its original form 
@@ -349,7 +353,17 @@ exports.prepare = function serialize$$prepare (what) {
  *  @returns    object  an object resembling the object originally passed to exports.prepare()
  */
 exports.unprepare = function serialize$$unprepare (obj) {
-  return unprepare([], obj, 'top')
+  if (!obj.hasOwnProperty('_serializeVerId')) {
+    try {
+      let str = JSON.stringify(obj)
+      throw new Error('Invalid serialization format (' + str.slice(0,20) + '\u22ef' + str.slice(-20) + ')')
+    } catch(e) {
+      throw new Error('Invalid serialization format')
+    }
+  }
+  if (obj._serializeVerId != 'v1')
+    throw new Error('Invalid serialization version')
+  return unprepare([], obj.what, 'top')
 }
 
 /** Serialize a value.
