@@ -36,12 +36,13 @@
  */
 
 /* This prologue allows a module.declare module's exports to be loaded with eval(readFileSync(filename)) */
-var module, _md;
-if (typeof module === "undefined" || typeof module.declare === "undefined") {
-  _md = (typeof module === "object") ? module.declare : null
-  if (typeof module !== "object")
-    module = { exports: {} };
-    module.declare = function moduleUnWrapper(deps, factory) {
+var _md
+if (typeof module === 'undefined' || typeof module.declare === 'undefined') {
+  _md = (typeof module === 'object') ? module.declare : null
+  if (typeof module !== 'object') {
+    module = { exports: {} }  // eslint-disable-line
+  }
+  module.declare = function moduleUnWrapper (deps, factory) {
     factory(null, module.exports, module)
     return module.exports
   }
@@ -216,12 +217,12 @@ function prepare (seen, o, where) {
     return { seen: i }
   }
 
-  /* Find primitives and objects which behave almost as primitives -- i.e. 
+  /* Find primitives and objects which behave almost as primitives -- i.e.
    * we don't need to iterate over their properties in order to
    * serialize them. Treat these as terminals.
    */
-  if (o === null || Array.isArray(o) || (typeof o === "object" && typeof o.toJSON !== 'undefined')
-      || typeof o === "string" || typeof o === "boolean" || typeof o === "number") {
+  if (o === null || Array.isArray(o) || (typeof o === 'object' && typeof o.toJSON !== 'undefined') ||
+      typeof o === 'string' || typeof o === 'boolean' || typeof o === 'number') {
     return prepare$primitive(o, where)
   }
   if (typeof o === 'undefined') {
@@ -247,20 +248,20 @@ function prepare (seen, o, where) {
    * must match unprepare()!
    */
   for (let prop in o) {
-    if (!o.hasOwnProperty(prop)) { 
-      continue 
+    if (!o.hasOwnProperty(prop)) {
+      continue
     }
 
     switch (typeof o[prop]) {
       case 'function':
       case 'object':
         if (o[prop] !== null && typeof o[prop].toJSON === 'undefined') {
-          if (typeof o[prop].constructor !== "undefined" && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object &&
+          if (typeof o[prop].constructor !== 'undefined' && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object &&
               o[prop].constructor !== Function && o[prop].constructor.constructor !== Function) {
             throw new Error('Cannot serialize property ' + prop + ' - multiple inheritance is not supported')
           }
           if ((i = seen.indexOf(o[prop])) === -1) {
-            po[prop] = prepare(seen, o[prop], where + "." + prop)
+            po[prop] = prepare(seen, o[prop], where + '.' + prop)
           } else {
             po[prop] = { seen: i }
           }
@@ -269,7 +270,7 @@ function prepare (seen, o, where) {
       case 'number':
       case 'boolean':
       case 'string':
-        po[prop] = prepare$primitive(o[prop], where + "." + prop)
+        po[prop] = prepare$primitive(o[prop], where + '.' + prop)
         break
       case 'undefined':
         po[prop] = prepare$undefined(o[prop])
@@ -331,7 +332,7 @@ function prepare$primitive (primitive, where) {
   try {
     return { primitive: primitive }
   } catch (e) {
-    let e2 = new (e.constructor)(e.message + " for " + where)
+    let e2 = new (e.constructor)(e.message + ' for ' + where)
     throw e2
   }
 }
@@ -348,21 +349,20 @@ exports.prepare = function serialize$$prepare (what) {
   return {_serializeVerId: 'v1', what: prepare([], what, 'top')}
 }
 
-/** Turn a prepared value back into its original form 
- *  @param      obj     a prepared object 
+/** Turn a prepared value back into its original form
+ *  @param      obj     a prepared object
  *  @returns    object  an object resembling the object originally passed to exports.prepare()
  */
 exports.unprepare = function serialize$$unprepare (obj) {
   if (!obj.hasOwnProperty('_serializeVerId')) {
     try {
       let str = JSON.stringify(obj)
-      throw new Error('Invalid serialization format (' + str.slice(0,20) + '\u22ef' + str.slice(-20) + ')')
-    } catch(e) {
+      throw new Error('Invalid serialization format (' + str.slice(0, 20) + '\u22ef' + str.slice(-20) + ')')
+    } catch (e) {
       throw new Error('Invalid serialization format')
     }
   }
-  if (obj._serializeVerId != 'v1')
-    throw new Error('Invalid serialization version')
+  if (obj._serializeVerId !== 'v1') { throw new Error('Invalid serialization version') }
   return unprepare([], obj.what, 'top')
 }
 
@@ -382,6 +382,5 @@ exports.deserialize = function deserialize (str) {
   return exports.unprepare(JSON.parse(str))
 }
 
-if (_md)
-  module.declare = _md;
+if (_md) { module.declare = _md }
 /* end of module */ })
