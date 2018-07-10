@@ -18,7 +18,7 @@
  *
  *                                      This library is safe to use on user-supplied data.
  *
- *                                      The basic implementation strategy is to marshall to an intermediate
+ *                                      The basic implementation strategy is to marshal to an intermediate
  *                                      format, called a 'prepared object', that can be used to recreate
  *                                      the original object, but can also be serialized with JSON. We
  *                                      track a list objects we have seen and their initial appearance in
@@ -103,7 +103,7 @@ function unprepare (seen, po, position) {
     return unprepare$function(seen, po, position)
   }
   if (po.hasOwnProperty('ab') || po.hasOwnProperty('isl')) {
-    return unprepare$ArrayBuffer(po)
+    return unprepare$ArrayBuffer(po, position)
   }
   if (po.hasOwnProperty('arr')) {
     return unprepare$Array(seen, po, position)
@@ -173,8 +173,9 @@ function unprepare$function (seen, po, position) {
 }
 
 /**
- * lst:1 - same as last row
- * ps:   - property list
+ * arr:[] - Array of primitives of prepared objects
+ * lst:N - repeat last element N times
+ * ps:[] - property list
  */
 function unprepare$Array (seen, po, position) {
   let a = []
@@ -183,14 +184,15 @@ function unprepare$Array (seen, po, position) {
   for (let i = 0; i < po.arr.length; i++) {
     if (typeof po.arr[i] === 'object') {
       if (po.arr[i].lst) {
-        a[i] = unprepare(seen, last, position + '.' + i)
+        for (let j = 0; j < po.arr[i].lst; j++) {
+          a.push(unprepare(seen, last, position + '.' + (i + j)))
+        }
         continue
-      } else {
-        a[i] = unprepare(seen, po.arr[i], position + '.' + i)
-        last = po.arr[i]
       }
+      a.push(unprepare(seen, po.arr[i], position + '.' + i))
+      last = po.arr[i]
     } else {
-      a[i] = po.arr[i]
+      a.push(po.arr[i])
       last = prepare$primitive(a[i], 'unprepare$Array')
     }
   }
@@ -211,7 +213,7 @@ function unprepare$Array (seen, po, position) {
  *  The isl (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
  */
-function unprepare$ArrayBuffer (po) {
+function unprepare$ArrayBuffer (po, position) {
   let i16, i8, words
   let bytes
 
@@ -370,33 +372,42 @@ function prepare (seen, o, where) {
 function prepare$Array (seen, o, where) {
   let pa = { arr: [] }
   let keys = Object.keys(o)
-  let last = NaN
+  let lastJson = NaN
   let json
+  let i
 
-  for (let i = 0; i < o.length; i++) {
+  for (i = 0; i < o.length; i++) {
     if (!o.hasOwnProperty(i)) {
       break /* sparse array */
     }
     if (typeof o[i] !== 'object' && isPrimitiveLike(o[i])) {
-      pa.arr[i] = o[i]
+      pa.arr.push(o[i])
     } else {
-      pa.arr[i] = prepare(seen, o[i], where + '.' + i)
+      pa.arr.push(prepare(seen, o[i], where + '.' + i))
     }
-    if (!pa.arr[i].seen && (json = JSON.stringify(pa.arr[i])) === last) {
-      pa.arr[i] = {lst: 1}
+
+    json = JSON.stringify(pa.arr[pa.arr.length - 1])
+    if (json === lastJson) {
+      if (pa.arr[pa.arr.length - 2].lst) {
+        pa.arr[pa.arr.length - 2].lst++
+        pa.arr.length--
+      } else {
+        pa.arr[pa.arr.length - 1] = {lst: 1}
+      }
     } else {
-      last = json
+      lastJson = json
     }
   }
 
-  if (keys.length !== pa.arr.length) {
+  if (keys.length !== o.length) {
     /* sparse array or array with own properties */
     pa.ps = {}
-    for (let i = 0; i < keys.length; i++) {
-      if (typeof o[keys[i]] !== 'object' && isPrimitiveLike(o[keys[i]])) {
+    for (let j = 0; j < keys.length; j++) {
+      if (typeof keys[j] === 'number' && keys[j] <= i) { continue }
+      if (typeof o[keys[j]] !== 'object' && isPrimitiveLike(o[keys[j]])) {
         pa.ps[keys[i]] = o[keys[i]]
       } else {
-        pa.ps[keys[i]] = prepare(seen, o[keys[i]], where + '.' + keys[i])
+        pa.ps[keys[j]] = prepare(seen, o[keys[j]], where + '.' + keys[j])
       }
     }
   }
@@ -474,7 +485,7 @@ function prepare$undefined (o) {
  *  @param      what any (supported) js value
  *  @returns    an object which can be serialized with json
  */
-exports.marshall = function serialize$$marshall (what) {
+exports.marshal = function serialize$$marshal (what) {
   return {_serializeVerId: 'v3', what: prepare([], what, 'top')}
 }
 
@@ -482,7 +493,7 @@ exports.marshall = function serialize$$marshall (what) {
  *  @param      obj     a prepared object - the output of exports.marshall()
  *  @returns    object  an object resembling the object originally passed to exports.marshall()
  */
-exports.unmarshall = function serialize$$unmarshall (obj) {
+exports.unmarshal = function serialize$$unmarshall (obj) {
   if (!obj.hasOwnProperty('_serializeVerId')) {
     try {
       let str = JSON.stringify(obj)
@@ -505,7 +516,7 @@ exports.unmarshall = function serialize$$unmarshall (obj) {
  *  @returns    The JSON serialization of the prepared object representing what.
  */
 exports.serialize = function serialize (what) {
-  return JSON.stringify(exports.marshall(what))
+  return JSON.stringify(exports.marshal(what))
 }
 
 /** Deserialize a value.
@@ -513,7 +524,7 @@ exports.serialize = function serialize (what) {
  *  @returns    The deserialized value
  */
 exports.deserialize = function deserialize (str) {
-  return exports.unmarshall(JSON.parse(str))
+  return exports.unmarshal(JSON.parse(str))
 }
 
 if (_md) { module.declare = _md }
