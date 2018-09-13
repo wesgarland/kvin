@@ -1,5 +1,5 @@
 /**
- *  @file       serialize.js            A general-purpose library for marshalling and serialiazing
+ *  @file       serialize.js            A general-purpose library for marshaling and serialiazing
  *                                      ES objects.  This library is a functional superset of JSON
  *                                      and relies on JSON for speed, adding:
  *                                      - Typed Arrays with efficient spare representation
@@ -70,7 +70,7 @@ const littleEndian = (function () {
   let ui8
 
   ui16[0] = 0xffef
-  ui8 = new Uint8Array(ui16.buffer)
+  ui8 = new Uint8Array(ui16.buffer, ui16.byteOffset, ui16.byteLength)
 
   if (ui8[0] === 0x0ff) {
     console.log('Detected big-endian platform')
@@ -79,6 +79,27 @@ const littleEndian = (function () {
 
   return true
 })()
+
+/** Pre-defined constructors, used to compact payload */
+const ctors = [
+  Object,
+  Int8Array,
+  Uint8Array,
+  Uint8ClampedArray,
+  Int16Array,
+  Uint16Array,
+  Int32Array,
+  Uint32Array,
+  Float32Array,
+  Float64Array,
+  RegExp,
+  Number,
+  String,
+  Boolean,
+  Array,
+  Function
+];
+
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
  *
@@ -90,11 +111,24 @@ const littleEndian = (function () {
  *  @returns    the value encoded by po
  */
 function unprepare (seen, po, position) {
-  if (po.hasOwnProperty('ctr') && !po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
-    if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
-      throw new Error('Whitelist does not include constructor ' + po.ctr)
+  if (po.hasOwnProperty('ctr')) {
+    switch (typeof po.ctr) {
+    case 'string':
+      if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
+	if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
+	  throw new Error('Whitelist does not include constructor ' + po.ctr)
+	}
+	throw new Error('Invalid constructor name: ' + po.ctr)
+      }
+      break
+    case 'number':
+      if (!(po.ctr >= 0 && po.ctr < ctors.length)) {
+	throw new Error('Invalid constructor number: ' + po.ctr)
+      }
+      break
+    default:
+      throw new Error('Invalid constructor label type ' + typeof po.ctr)
     }
-    throw new Error('Invalid constructor name: ' + po.ctr)
   }
   if (po.hasOwnProperty('ptv')) {
     return po.ptv
@@ -128,11 +162,18 @@ function unprepare (seen, po, position) {
 
 function unprepare$object (seen, po, position) {
   let o
+  let constructor;
 
-  if (po.hasOwnProperty('arg')) {
-    o = new (eval(po.ctr))(po.arg) // eslint-disable-line
+  if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
+    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
-    o = new (eval(po.ctr))() // eslint-disable-line
+    constructor = ctors[po.ctr]
+  }
+  
+  if (po.hasOwnProperty('arg')) {
+    o = new constructor(po.arg) 
+  } else {
+    o = new constructor() // eslint-disable-line
   }
 
   seen.push(o)
@@ -153,7 +194,7 @@ function unprepare$function (seen, po, position) {
   let fnName = po.fnName
 
   /* A function is basically a callable object */
-  po.ctr = 'Object'
+  po.ctr = ctors.indexOf(Object)
   delete po.fnName
   obj = unprepare(seen, po, position)
 
@@ -216,6 +257,13 @@ function unprepare$Array (seen, po, position) {
 function unprepare$ArrayBuffer (po, position) {
   let i16, i8, words
   let bytes
+  let constructor;
+
+  if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
+    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
+  } else {
+    constructor = ctors[po.ctr]
+  }
 
   if (po.hasOwnProperty('ab')) {
     bytes = po.ab.length * 2
@@ -239,7 +287,7 @@ function unprepare$ArrayBuffer (po, position) {
       }
     }
   }
-  i8 = new Int8Array(i16.buffer, 0, bytes)
+  i8 = new Int8Array(i16.buffer, i16.byteOffset, bytes)
   if (po.hasOwnProperty('eb')) {
     i8[i8.byteLength - 1] = po.eb.charCodeAt(0)
   }
@@ -252,11 +300,11 @@ function unprepare$ArrayBuffer (po, position) {
     }
   }
 
-  return new (eval(po.ctr))(i8.buffer) // eslint-disable-line
+  return new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
 }
 
 /* Primitives and primitive-like objects do not have any special
- * marshalling requirements -- specifically, we don't need to
+ * marshaling requirements -- specifically, we don't need to
  * iterate over their properties in order to serialize them; we
  * can let JSON.stringify() do any heavy lifting.
  */
@@ -358,7 +406,7 @@ function prepare (seen, o, where) {
     }
   }
 
-  ret = { ctr: 'Object', ps: po }
+  ret = { ctr: ctors.indexOf(Object), ps: po }
   if (typeof o === 'function') {
     ret.fnName = o.name
     ret.arg = o.toString()
@@ -419,19 +467,23 @@ function prepare$Array (seen, o, where) {
 function prepare$ArrayBuffer (o) {
   if (o.byteLength < exports.typedArrayPackThreshold) { /* Small enough to use fast code */
     // alt impl: return { ctr: o.constructor.name, arg: o.length, ps: o }
-    return { ctr: o.constructor.name, arg: Array.prototype.slice.call(o) }
+    return { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
   }
-  let ret = { ctr: o.constructor.name }
+
+  let ret = { ctr: ctors.indexOf(o.constructor) }
   let nWords = Math.floor(o.byteLength / 2)
   let s = ''
 
+  if (ret.ctr === -1)
+    ret.ctr = o.constructor.name
+  
   if (littleEndian) {
-    let ui16 = new Uint16Array(o.buffer, 0, nWords)
+    let ui16 = new Uint16Array(o.buffer, o.byteOffset, nWords)
     for (let i = 0; i < nWords; i++) {
       s += String.fromCharCode(ui16[i])
     }
   } else {
-    let ui8 = new Uint8Array(o.buffer)
+    let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
     for (let i = 0; i < nWords; i++) {
       s += String.fromCharCode((ui8[0 + (2 * i)] << 8) + (ui8[1 + (2 * i)]))
     }
@@ -441,8 +493,9 @@ function prepare$ArrayBuffer (o) {
   if (s.indexOf(manyZeroes) === -1) {
     ret.ab = s
   } else {
-    /* String looks zero-busy: represent via islands of non-zero (sparse string). */
-    let re = /([^\u0000](....|$))+/g
+    /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
+    // let re = /([^\u0000]+/g
+    let re = /([^\u0000]+(.{0,3}([^\u0000]|$))*)+/g
     let island
 
     ret.isl = []
@@ -452,7 +505,7 @@ function prepare$ArrayBuffer (o) {
     }
   }
   if ((2 * nWords) !== o.byteLength) {
-    let ui8 = new Uint8Array(o.buffer, o.buffer.byteLength - 1, 1)
+    let ui8 = new Uint8Array(o.buffer, o.byteOffset + o.byteLength - 1, 1)
     ret.eb = ui8[0]
   }
 
@@ -460,11 +513,11 @@ function prepare$ArrayBuffer (o) {
 }
 
 function prepare$RegExp (o) {
-  return { ctr: o.constructor.name, arg: o.toString().slice(1, -1) }
+  return { ctr: ctors.indexOf(o.constructor), arg: o.toString().slice(1, -1) }
 }
 
 function prepare$boxedPrimitive (o) {
-  return { ctr: o.constructor.name, arg: o.toString() }
+  return { ctr: ctors.indexOf(o.constructor), arg: o.toString() }
 }
 
 /* Store primitives an sort-of-primitives (like object literals) directly */
@@ -489,11 +542,11 @@ exports.marshal = function serialize$$marshal (what) {
   return {_serializeVerId: 'v3', what: prepare([], what, 'top')}
 }
 
-/** Turn a marshalled value back into its original form
- *  @param      obj     a prepared object - the output of exports.marshall()
- *  @returns    object  an object resembling the object originally passed to exports.marshall()
+/** Turn a marshaled (prepared) value back into its original form
+ *  @param      obj     a prepared object - the output of exports.marshal()
+ *  @returns    object  an object resembling the object originally passed to exports.marshal()
  */
-exports.unmarshal = function serialize$$unmarshall (obj) {
+exports.unmarshal = function serialize$$unmarshal (obj) {
   if (!obj.hasOwnProperty('_serializeVerId')) {
     try {
       let str = JSON.stringify(obj)
