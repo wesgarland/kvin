@@ -115,15 +115,15 @@ function unprepare (seen, po, position) {
     switch (typeof po.ctr) {
     case 'string':
       if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
-	if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
-	  throw new Error('Whitelist does not include constructor ' + po.ctr)
-	}
-	throw new Error('Invalid constructor name: ' + po.ctr)
+        if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
+          throw new Error('Whitelist does not include constructor ' + po.ctr)
+        }
+        throw new Error('Invalid constructor name: ' + po.ctr)
       }
       break
     case 'number':
       if (!(po.ctr >= 0 && po.ctr < ctors.length)) {
-	throw new Error('Invalid constructor number: ' + po.ctr)
+        throw new Error('Invalid constructor number: ' + po.ctr)
       }
       break
     default:
@@ -136,8 +136,8 @@ function unprepare (seen, po, position) {
   if (po.hasOwnProperty('fnName')) {
     return unprepare$function(seen, po, position)
   }
-  if (po.hasOwnProperty('ab') || po.hasOwnProperty('isl')) {
-    return unprepare$ArrayBuffer(po, position)
+  if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
+    return unprepare$ArrayBuffer16(po, position)
   }
   if (po.hasOwnProperty('arr')) {
     return unprepare$Array(seen, po, position)
@@ -247,14 +247,14 @@ function unprepare$Array (seen, po, position) {
   return a
 }
 
-/** The ab (array buffer) encoding encodes TypedArrays and related types by
+/** The ab16 (array buffer 16 bit) encoding encodes TypedArrays and related types by
  *  converting them to strings full of binary data in 16-bit words. Buffers
  *  with an odd number of bytes encode an extra byte 'eb' at the end by itself.
  *
- *  The isl (islands) encoding is almost the same, except that it encodes only
+ *  The isl16 (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
  */
-function unprepare$ArrayBuffer (po, position) {
+function unprepare$ArrayBuffer16 (po, position) {
   let i16, i8, words
   let bytes
   let constructor;
@@ -265,8 +265,8 @@ function unprepare$ArrayBuffer (po, position) {
     constructor = ctors[po.ctr]
   }
 
-  if (po.hasOwnProperty('ab')) {
-    bytes = po.ab.length * 2
+  if (po.hasOwnProperty('ab16')) {
+    bytes = po.ab16.length * 2
     if (po.hasOwnProperty('eb')) {
       bytes++
     }
@@ -276,14 +276,14 @@ function unprepare$ArrayBuffer (po, position) {
 
   words = Math.floor(bytes / 2) + (bytes % 2)
   i16 = new Int16Array(words)
-  if (po.hasOwnProperty('ab')) {
-    for (let i = 0; i < po.ab.length; i++) {
-      i16[i] = po.ab.charCodeAt(i)
+  if (po.hasOwnProperty('ab16')) {
+    for (let i = 0; i < po.ab16.length; i++) {
+      i16[i] = po.ab16.charCodeAt(i)
     }
   } else {
-    for (let j = 0; j < po.isl.length; j++) {
-      for (let i = 0; i < po.isl[j][0].length; i++) {
-        i16[po.isl[j]['@'] + i] = po.isl[j][0].charCodeAt(i)
+    for (let j = 0; j < po.isl16.length; j++) {
+      for (let i = 0; i < po.isl16[j][0].length; i++) {
+        i16[po.isl16[j]['@'] + i] = po.isl16[j][0].charCodeAt(i)
       }
     }
   }
@@ -355,7 +355,7 @@ function prepare (seen, o, where) {
     return prepare$Array(seen, o, where)
   }
   if (ArrayBuffer.isView(o)) {
-    return prepare$ArrayBuffer(o)
+    return prepare$ArrayBuffer16(o)
   }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return prepare$boxedPrimitive(o)
@@ -463,8 +463,8 @@ function prepare$Array (seen, o, where) {
   return pa
 }
 
-/** @seen unprepare$ArrayBuffer */
-function prepare$ArrayBuffer (o) {
+/** @see unprepare$ArrayBuffer16 */
+function prepare$ArrayBuffer16 (o) {
   if (o.byteLength < exports.typedArrayPackThreshold) { /* Small enough to use fast code */
     // alt impl: return { ctr: o.constructor.name, arg: o.length, ps: o }
     return { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
@@ -491,17 +491,17 @@ function prepare$ArrayBuffer (o) {
 
   let manyZeroes = '\u0000\u0000\u0000\u0000'
   if (s.indexOf(manyZeroes) === -1) {
-    ret.ab = s
+    ret.ab16 = s
   } else {
     /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
     // let re = /([^\u0000]+/g
     let re = /([^\u0000]+(.{0,3}([^\u0000]|$))*)+/g
     let island
 
-    ret.isl = []
+    ret.isl16 = []
     ret.len = o.byteLength
     while ((island = re.exec(s))) {
-      ret.isl.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index})
+      ret.isl16.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index})
     }
   }
   if ((2 * nWords) !== o.byteLength) {
