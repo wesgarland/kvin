@@ -35,6 +35,11 @@
  *
  *  @author     Wes Garland, wes@page.ca
  *  @date       June 2018
+ *
+ *  @bugs       There are known or suspected issues in the following areas:
+ *              - Arrays which contain the same object more than once 
+ *              - Arrays which mix numeric and non-numeric properties, especially if they are objects
+ *              - Sparse Arrays
  */
 
 /* This prologue allows a CJS2 module's exports to be loaded with eval(readFileSync(filename)) */
@@ -250,6 +255,43 @@ function unprepare$Array (seen, po, position) {
   return a
 }
 
+/** The ab8 (array buffer 8 bit) encoding encodes TypedArrays and related types by
+ *  converting them to Latin-1 strings full of binary data in 8-bit words. 
+ *
+ *  The isl8 (islands) encoding is almost the same, except that it encodes only
+ *  sequences of mostly-non-zero sections of the string.
+ */
+function unprepare$ArrayBuffer8 (po, position) {
+  let i8
+  let bytes
+  let constructor;
+
+  if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
+    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
+  } else {
+    constructor = ctors[po.ctr]
+  }
+
+  if (po.hasOwnProperty('ab8')) {
+    bytes = po.ab8.length
+  } else {
+    bytes = po.len
+  }
+  i8 = new Int8Array(bytes)
+  if (po.hasOwnProperty('ab8')) {
+    for (let i = 0; i < po.ab8.length; i++) {
+      i8[i] = po.ab8.charCodeAt(i)
+    }
+  } else {
+    for (let j = 0; j < po.isl8.length; j++) {
+      for (let i = 0; i < po.isl8[j][0].length; i++) {
+        i8[po.isl8[j]['@'] + i] = po.isl8[j][0].charCodeAt(i)
+      }
+    }
+  }
+  return new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
+}
+
 /** The ab16 (array buffer 16 bit) encoding encodes TypedArrays and related types by
  *  converting them to strings full of binary data in 16-bit words. Buffers
  *  with an odd number of bytes encode an extra byte 'eb' at the end by itself.
@@ -417,8 +459,8 @@ function prepare (seen, o, where) {
   return ret
 }
 
-/* Prepare an Array.  Sparse arrays and arrays with properties
- * are supported, and represented reasonably efficiently.
+/** Prepare an Array.  Sparse arrays and arrays with properties
+ *  are supported, and represented reasonably efficiently.
  */
 function prepare$Array (seen, o, where) {
   let pa = { arr: [] }
@@ -540,14 +582,20 @@ function prepare$ArrayBuffer16 (o) {
  */
 function prepare$ArrayBuffer8 (o) {
   let ret = { ctr: ctors.indexOf(o.constructor) }
-  let nBytes = o.byteLength
 
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
   
+  const mss = 100000
   let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
-  let s = String.fromCharCode.apply(null, ui8)
+  let segments = []
+  let s
 
+  for (let i=0; i < ui8.length / mss; i++) {
+    segments.push(String.fromCharCode.apply(null, ui8.slice(i * mss, (i + 1) * mss)))
+  }
+  s = segments.join('')
+  
   let manyZeroes = '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000'
   if (s.indexOf(manyZeroes) === -1) {
     ret.ab8 = s
