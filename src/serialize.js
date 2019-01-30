@@ -139,6 +139,9 @@ function unprepare (seen, po, position) {
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
     return unprepare$ArrayBuffer16(po, position)
   }
+  if (po.hasOwnProperty('ab8') || po.hasOwnProperty('isl8')) {
+    return unprepare$ArrayBuffer8(po, position)
+  }
   if (po.hasOwnProperty('arr')) {
     return unprepare$Array(seen, po, position)
   }
@@ -355,7 +358,7 @@ function prepare (seen, o, where) {
     return prepare$Array(seen, o, where)
   }
   if (ArrayBuffer.isView(o)) {
-    return prepare$ArrayBuffer16(o)
+    return prepare$ArrayBuffer(o)
   }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return prepare$boxedPrimitive(o)
@@ -463,13 +466,24 @@ function prepare$Array (seen, o, where) {
   return pa
 }
 
-/** @see unprepare$ArrayBuffer16 */
-function prepare$ArrayBuffer16 (o) {
-  if (o.byteLength < exports.typedArrayPackThreshold) { /* Small enough to use fast code */
-    // alt impl: return { ctr: o.constructor.name, arg: o.length, ps: o }
-    return { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
+/** Detect JavaScript strings which contain ill-formed UTF-16 sequences */
+function notUnicode(s) {
+  if (/[\ud800-\udbff][^\udc00-\udfff]/.test(s)) {
+    return true /* high-surrogate without low-surrogate */
   }
 
+  if (/[^\ud800-\udbff][\udc00-\udfff]/.test(s)) {
+    return true /* low-surrogate without high-surrogate */
+  }
+
+  return false
+}
+/** Prepare an ArrayBuffer into UCS-2, returning null when we cannot guarantee
+ *  that the UCS-2 is also composed of valid UTF-16 code points
+ *
+ *  @see unprepare$ArrayBuffer16 
+ */
+function prepare$ArrayBuffer16 (o) {
   let ret = { ctr: ctors.indexOf(o.constructor) }
   let nWords = Math.floor(o.byteLength / 2)
   let s = ''
@@ -509,7 +523,91 @@ function prepare$ArrayBuffer16 (o) {
     ret.eb = ui8[0]
   }
 
+  if (ret.ab16 && notUnicode(ret.ab16)) {
+    return null
+  } else {
+    for (let i = 0; i < isl16.length; i++) {
+      if (notUnicode(isl16[i])) {
+        return null
+      }
+    }
+  }
   return ret
+}
+
+/** Encode an ArrayBuffer (TypedArray) into a string composed solely of Latin-1 characters. 
+ *  Strings with many zeroes will be represented as sparse-string objects.
+ */
+function prepare$ArrayBuffer8 (o) {
+  let ret = { ctr: ctors.indexOf(o.constructor) }
+  let nBytes = o.byteLength
+
+  if (ret.ctr === -1)
+    ret.ctr = o.constructor.name
+  
+  let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
+  let s = String.fromCharCode.apply(null, ui8)
+
+  let manyZeroes = '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000'
+  if (s.indexOf(manyZeroes) === -1) {
+    ret.ab8 = s
+  } else {
+    /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
+    // let re = /([^\u0000]+/g
+    let re = /([^\u0000]+(.{0,3}([^\u0000]|$))*)+/g
+    let island
+
+    ret.isl8 = []
+    ret.len = o.byteLength
+    while ((island = re.exec(s))) {
+      ret.isl8.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index})
+    }
+  }
+
+  return ret
+}
+
+/** Encode an ArrayBuffer (TypedArray) into a string, trying multiple methods to determine
+ *  optimimum size/performance.  The exports.tune variable affects the behaviour of this code this:
+ *
+ *  "speed" - only do naive encoding: floats get represented as byte-per-digit strings
+ *  "size" - try the naive, ab8, and ab16 encodings; pick the smallest
+ *  neither - try the naive encoding if under typedArrayPackThreshold and use if smaller than
+ *            ab8; otherwise, use ab8
+ */
+function prepare$ArrayBuffer (o) {
+  let naive, naiveJSONLen;
+  let ab8, ab8JSONLen;
+  let ab16, ab16JSONLen;
+  
+  if (exports.tune === "speed" || exports.tune === "size" || (o.byteLength < exports.typedArrayPackThreshold)) {
+    naive = { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
+    if (exports.tune === "speed") {
+      return naive
+    }
+  }
+
+  ab8 = prepare$ArrayBuffer8(o)
+  if (exports.tune !== "size") {
+    if (naive && naive.length < ab8.length) {
+      return naive
+    }
+    return ab8
+  }
+
+  ab16 = prepare$ArrayBuffer16(o)
+  naiveJSONLen = naive ? naive.length + 2 : Infinity
+  ab8JSONLen = JSON.stringify(ab8).length;
+  ab16JSONLen = ab16 ? JSON.stringify(ab16).length : Infinity
+
+  if (ab16JSONLen < ab8JSONLen && ab16JSONLen < naiveJSONLen) {
+    return ab16
+  }
+  if (naiveJSONLen < ab8JSONLen) {
+    return naive
+  }
+
+  return ab8;
 }
 
 function prepare$RegExp (o) {
@@ -539,7 +637,7 @@ function prepare$undefined (o) {
  *  @returns    an object which can be serialized with json
  */
 exports.marshal = function serialize$$marshal (what) {
-  return {_serializeVerId: 'v3', what: prepare([], what, 'top')}
+  return {_serializeVerId: 'v4', what: prepare([], what, 'top')}
 }
 
 /** Turn a marshaled (prepared) value back into its original form
@@ -556,7 +654,7 @@ exports.unmarshal = function serialize$$unmarshal (obj) {
     }
   }
   switch (obj._serializeVerId) {
-    case 'v3':
+    case 'v4':
       break
     default:
       throw new Error('Invalid serialization version')
