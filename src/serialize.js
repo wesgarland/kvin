@@ -70,6 +70,16 @@ exports.makeFunctions = false
  */
 exports.typedArrayPackThreshold = 8
 
+/* Arrays of primitives which are >= the threshold in length are scrutinized
+ * for further optimization, e.g. by run-length encoding
+ */
+exports.scanArrayThreshold = 8
+
+/** Maxmimum number of arguments we can pass to a function in this engine.
+ * @todo this needs to be detected at startup based on environment
+ */
+const _vm_fun_maxargs = 100000 
+  
 const littleEndian = (function () {
   let ui16 = new Uint16Array(1)
   let ui8
@@ -230,6 +240,8 @@ function unprepare$Array (seen, po, position) {
   let a = []
   let last
 
+  seen.push(a)
+
   for (let i = 0; i < po.arr.length; i++) {
     if (typeof po.arr[i] === 'object') {
       if (po.arr[i].lst) {
@@ -246,12 +258,38 @@ function unprepare$Array (seen, po, position) {
     }
   }
 
+  if (po.hasOwnProperty('isl')) {
+    for (let prop in po.isl) {
+      let island = po.isl[prop]
+      let els = Array.isArray(island.arr) ? island.arr : unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
+
+      if (els.length - 3 <= _vm_fun_maxargs) {
+        if (els.length && (a.length < island['@'] + els.length)) {
+          a.length = island['@'] + els.length
+        }
+        a.splice.apply(a, [island['@'], els.length].concat(els))
+      } else {
+        for (let i=0; i < els.length; i++) {
+          a[i + +island['@']] = els[i]
+        }
+      }
+    }
+  }
+  
   if (po.hasOwnProperty('ps')) {
     for (let prop in po.ps) {
-      a[prop] = po.ps[prop]
+      if (typeof po.ps[prop] === 'object') {
+        a[prop] = unprepare(seen, po.ps[prop], position + '.' + prop)
+      } else {
+        a[prop] = po.ps[prop]
+      }
     }
   }
 
+  if (po.len) {
+    a.length = po.len
+  }
+  
   return a
 }
 
@@ -361,6 +399,11 @@ function isPrimitiveLike (o) {
 
   if (!Array.isArray(o)) {
     return false
+  } else {
+    let keys = Object.keys(o)
+    if (keys.length !== o.length) { 
+      return false /* sparse array or named props */
+    }
   }
 
   for (let i = 0; i < o.length; i++) {
@@ -385,7 +428,8 @@ function prepare (seen, o, where) {
   let po = {}
 
   if (isPrimitiveLike(o)) {
-    return prepare$primitive(o, where)
+    if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
+      return prepare$primitive(o, where)
   }
   if (typeof o === 'undefined') {
     return prepare$undefined(o)
@@ -460,7 +504,12 @@ function prepare (seen, o, where) {
 }
 
 /** Prepare an Array.  Sparse arrays and arrays with properties
- *  are supported, and represented reasonably efficiently.
+ *  are supported, and represented reasonably efficiently, as are
+ *  arrays of repeated values.
+ *
+ *  @param   seen   The current seen list for this marshal - things pointers point to
+ *  @param   o      The array we are preparing
+ *  @param   where  Human description of where we are in the object, for debugging purposes
  */
 function prepare$Array (seen, o, where) {
   let pa = { arr: [] }
@@ -468,7 +517,8 @@ function prepare$Array (seen, o, where) {
   let lastJson = NaN
   let json
   let i
-
+  let lstTotal = 0
+  
   for (i = 0; i < o.length; i++) {
     if (!o.hasOwnProperty(i)) {
       break /* sparse array */
@@ -478,12 +528,13 @@ function prepare$Array (seen, o, where) {
     } else {
       pa.arr.push(prepare(seen, o[i], where + '.' + i))
     }
-
+   
     json = JSON.stringify(pa.arr[pa.arr.length - 1])
     if (json === lastJson) {
       if (pa.arr[pa.arr.length - 2].lst) {
         pa.arr[pa.arr.length - 2].lst++
         pa.arr.length--
+        lstTotal++
       } else {
         pa.arr[pa.arr.length - 1] = {lst: 1}
       }
@@ -493,18 +544,48 @@ function prepare$Array (seen, o, where) {
   }
 
   if (keys.length !== o.length) {
-    /* sparse array or array with own properties */
-    pa.ps = {}
+    /* sparse array or array with own properties - difference between sparse entry and value=undefined preserved */
     for (let j = 0; j < keys.length; j++) {
-      if (typeof keys[j] === 'number' && keys[j] <= i) { continue }
-      if (typeof o[keys[j]] !== 'object' && isPrimitiveLike(o[keys[j]])) {
-        pa.ps[keys[i]] = o[keys[i]]
+      let key = keys[j]
+      let idx = +key
+      if (idx < i && pa.arr.hasOwnProperty(idx)) { /* test order for speed */
+        continue
+      }
+      if (typeof idx === 'number' && o.hasOwnProperty(idx + 1)) {
+        let island = { '@':idx, arr:[] }
+        /* island of data inside sparse array */
+        if (!pa.isl) {
+          pa.isl = []
+        }
+        for (let k = idx; o.hasOwnProperty(k); k++) {
+          island.arr.push(o[k])
+        }
+        j += island.arr.length - 1
+        if (island.arr.length >= exports.scanArrayThreshold) {
+          let tmp = prepare(seen, island.arr, where + '.' + 'isl@' + (j - island.arr.length))
+          if (tmp.hasOwnProperty('arr')) {
+            island.arr = tmp
+          } else {
+            pa.isl.push(island)
+          }
+        }
+        pa.isl.push(island)
+        continue
+      }
+      if (!pa.hasOwnProperty('ps')) {
+        pa.ps = {}
+      }
+      if (typeof o[key] !== 'object' && isPrimitiveLike(o[key])) {
+        pa.ps[key] = o[key]
       } else {
-        pa.ps[keys[j]] = prepare(seen, o[keys[j]], where + '.' + keys[j])
+        pa.ps[key] = prepare(seen, o[key], where + '.' + key)
       }
     }
   }
 
+  if (pa.arr.length + lstTotal !== o.length) {
+    pa.len = o.length
+  }
   return pa
 }
 
@@ -586,7 +667,7 @@ function prepare$ArrayBuffer8 (o) {
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
   
-  const mss = 100000
+  const mss = _vm_fun_maxargs - 1
   let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
   let segments = []
   let s
@@ -685,7 +766,7 @@ function prepare$undefined (o) {
  *  @returns    an object which can be serialized with json
  */
 exports.marshal = function serialize$$marshal (what) {
-  return {_serializeVerId: 'v4', what: prepare([], what, 'top')}
+  return {_serializeVerId: 'v5', what: prepare([], what, 'top')}
 }
 
 /** Turn a marshaled (prepared) value back into its original form
@@ -703,6 +784,7 @@ exports.unmarshal = function serialize$$unmarshal (obj) {
   }
   switch (obj._serializeVerId) {
     case 'v4':
+    case 'v5':
       break
     default:
       throw new Error('Invalid serialization version')
