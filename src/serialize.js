@@ -29,17 +29,17 @@
  *                                      cycles in less-common interpreters, such as Rhino and (especially)
  *                                      the NJS/NGS ES3 platform by Brian Basset.
  *
- *  @note       It is important to keep this module free of external dependencies, so that it
+ *  *note* -    It is important to keep this module free of external dependencies, so that it
  *              can be easily injected into workers without module loaders during application
  *              bootstrapping / debugging.
  *
- *  @author     Wes Garland, wes@page.ca
- *  @date       June 2018
- *
- *  @bugs       There are known or suspected issues in the following areas:
+ *  *bugs* -    There are known or suspected issues in the following areas:
  *              - Arrays which contain the same object more than once 
  *              - Arrays which mix numeric and non-numeric properties, especially if they are objects
  *              - Sparse Arrays
+ *  @author     Wes Garland, wes@page.ca
+ *  @date       June 2018
+ *
  */
 
 /* This prologue allows a CJS2 module's exports to be loaded with eval(readFileSync(filename)) */
@@ -766,7 +766,7 @@ function prepare$undefined (o) {
  *  @returns    an object which can be serialized with json
  */
 exports.marshal = function serialize$$marshal (what) {
-  return {_serializeVerId: 'v5', what: prepare([], what, 'top')}
+  return {_serializeVerId: exports.serializeVerId, what: prepare([], what, 'top')}
 }
 
 /** Turn a marshaled (prepared) value back into its original form
@@ -808,5 +808,7 @@ exports.deserialize = function deserialize (str) {
   return exports.unmarshal(JSON.parse(str))
 }
 
+exports.serializeVerId = 'v5'
+  
 if (_md) { module.declare = _md }
 /* end of module */ })
