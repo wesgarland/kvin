@@ -112,7 +112,8 @@ const ctors = [
   String,
   Boolean,
   Array,
-  Function
+  Function,
+  URL
 ];
 
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
@@ -427,7 +428,7 @@ function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
-  if (isPrimitiveLike(o)) {
+  if (false && isPrimitiveLike(o)) {
     if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
       return prepare$primitive(o, where)
   }
