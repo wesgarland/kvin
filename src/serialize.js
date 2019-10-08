@@ -112,10 +112,9 @@ const ctors = [
   String,
   Boolean,
   Array,
-  Function,
-  URL
+  Function
 ];
-
+    
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
  *
@@ -454,6 +453,26 @@ function prepare (seen, o, where) {
     return prepare$RegExp(o)
   }
 
+  if (typeof o.constructor === 'undefined') {
+    console.log('Warning: ' + where + ' is missing .constructor -- skipping')
+    return prepare$undefined(o)
+  }
+
+  ret = { ctr: ctors.indexOf(o.constructor), ps: po }
+  if (ret.ctr === -1)
+    ret.ctr = o.constructor.name || ctors.indexOf(Object)
+
+  if (typeof o === 'function') {
+    ret.fnName = o.name
+  }
+
+  if (typeof o.toJSON === 'function') {
+    ret.arg = o.toJSON()
+  } else {
+    if (o.constructor !== Object)
+      ret.arg = o.toString()
+  }
+  
   if (typeof o.hasOwnProperty === 'undefined') {
     console.log('Warning: ' + where + ' is missing .hasOwnProperty -- skipping')
     return prepare$undefined(o)
@@ -496,11 +515,6 @@ function prepare (seen, o, where) {
     }
   }
 
-  ret = { ctr: ctors.indexOf(Object), ps: po }
-  if (typeof o === 'function') {
-    ret.fnName = o.name
-    ret.arg = o.toString()
-  }
   return ret
 }
 
@@ -786,6 +800,7 @@ exports.unmarshal = function serialize$$unmarshal (obj) {
   switch (obj._serializeVerId) {
     case 'v4':
     case 'v5':
+    case 'v6':
       break
     default:
       throw new Error('Invalid serialization version')
@@ -809,7 +824,7 @@ exports.deserialize = function deserialize (str) {
   return exports.unmarshal(JSON.parse(str))
 }
 
-exports.serializeVerId = 'v5'
+exports.serializeVerId = 'v6'
   
 if (_md) { module.declare = _md }
 /* end of module */ })
