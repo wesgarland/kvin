@@ -1,5 +1,5 @@
 /**
- *  @file       serialize.js            A general-purpose library for marshaling and serialiazing
+ *  @file       serialize.js            A general-purpose library for marshaling and serializing
  *                                      ES objects.  This library is a functional superset of JSON
  *                                      and relies on JSON for speed, adding:
  *                                      - Typed Arrays with efficient spare representation
