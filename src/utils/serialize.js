@@ -112,9 +112,12 @@ const ctors = [
   String,
   Boolean,
   Array,
-  Function
+  Function,
+  URL,
 ];
-    
+
+exports.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
+  
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
  *
@@ -183,7 +186,10 @@ function unprepare$object (seen, po, position) {
   let constructor;
 
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
-    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
+    if (exports.userCtors.hasOwnProperty(po.ctr))
+      constructor = exports.userCtors[po.ctr];
+    else
+      constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
     constructor = ctors[po.ctr]
   }
@@ -491,9 +497,12 @@ function prepare (seen, o, where) {
       case 'function':
       case 'object':
         if (o[prop] !== null && typeof o[prop].toJSON === 'undefined') {
-          if (typeof o[prop].constructor !== 'undefined' && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object &&
-              o[prop].constructor !== Function && o[prop].constructor.constructor !== Function) {
-            throw new Error('Cannot serialize property ' + prop + ' - multiple inheritance is not supported')
+          if (typeof o[prop].constructor !== 'undefined'
+              && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object
+              && o[prop].constructor !== Function && o[prop].constructor.constructor !== Function
+              && o[prop].constructor !== Function && o[prop].constructor.constructor.name !== "Function" /* vm context issue /wg aug 2020 */
+             ) {
+            throw new Error(`Cannot serialize property ${where}.${prop} - multiple inheritance is not supported.`);
           }
           if ((i = seen.indexOf(o[prop])) === -1) {
             po[prop] = prepare(seen, o[prop], where + '.' + prop)
