@@ -1,0 +1,31 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+
+var o = {a: undefined, b: "hello", c: 123.456, d: {a: Infinity}, e: {f: {g: {hello: "world"}}}};
+o = {a:'1'};
+//var s = kvin.serialize(o);
+//var o2 = kvin.deserialize(s);
+var m = kvin.marshal(o);
+var o2 = kvin.unmarshal(m);
+
+function ser(o) {
+  var s='';
+
+  for (let el in o) {
+    s += [ el, typeof o[el], typeof o[el] === 'object' ? ser(o[el]) : o[el] ].join(',') + ':';
+  }
+
+  return '{' + s + '}';
+}
+
+so = ser(o);
+so2 = ser(o2);
+
+console.log('m', m);
+console.log('so', so);
+console.log('so2', so2);
+if (so !== so2)
+  throw new Error('serialized object does not match original object');
+
+
