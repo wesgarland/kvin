@@ -1,0 +1,49 @@
+#! /usr/bin/env node
+
+/* isl - islands of zeroes encoding */
+
+const kvin = require('../kvin');
+const howManyTotal = 1000;
+
+var F = new Float64Array(1000000);
+var idx;
+var howMany;
+
+howMany = howManyTotal / 2;
+for (let i=0; i < F.length && howMany; howMany--) {
+  F[i || Math.random * F.length / howMany] = Math.random();
+  i += Math.floor(Math.random() * F.length / howMany);
+}
+
+for (let i=0; i < howManyTotal / 2; i++) {
+  let idx = Math.random * F.length;
+  F[idx] = Math.random();
+  F[idx+1] = Math.random();
+  F[idx+2] = Math.random();
+}
+
+F[0] = NaN;
+F[1] = Infinity;
+F[2] = -Infinity;
+
+serF = kvin.serialize(F);
+newF = kvin.deserialize(serF);
+
+/* ensure (de)serialization produces correct values */
+for (let i=0; i < F.length; i++) {
+  if (newF[i] !== F[i]) {
+    if (isNaN(newF[i]) && isNaN(F[i]))
+      continue;
+    throw new Error(`newF[${i}] = ${newF[i]}, F[${i}] = ${F[i]}`);
+  }
+}
+
+/* ensure (de)serialization produces correct types */
+for (let i=0; i < F.length; i++) {
+  if (typeof newF[i] !== typeof F[i]) {
+    throw new Error(`typeof newF[${i}] = ${typeof newF[i]}, typeof F[${i}] = ${typeof F[i]}`);
+  }
+}
+
+if (serF.length > howManyTotal * 100)
+  throw new Error(`Serialized length ${serF.length} much longer than anticipated for ${howManyTotal} islands`);

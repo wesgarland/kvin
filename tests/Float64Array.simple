@@ -1,0 +1,31 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+
+var F = new Float64Array(1000000);
+
+for (let i=2; i < F.length; i++)
+  F[i] = Math.random();
+
+F[0] = NaN;
+F[1] = Infinity;
+F[2] = -Infinity;
+
+serF = kvin.serialize(F);
+newF = kvin.deserialize(serF);
+
+/* ensure (de)serialization produces correct values */
+for (let i=0; i < F.length; i++) {
+  if (newF[i] !== F[i]) {
+    if (isNaN(newF[i]) && isNaN(F[i]))
+      continue;
+    throw new Error(`newF[${i}] = ${newF[i]}, F[${i}] = ${F[i]}`);
+  }
+}
+
+/* ensure (de)serialization produces correct types */
+for (let i=0; i < F.length; i++) {
+  if (typeof newF[i] !== typeof F[i]) {
+    throw new Error(`typeof newF[${i}] = ${typeof newF[i]}, typeof F[${i}] = ${typeof F[i]}`);
+  }
+}
