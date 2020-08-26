@@ -1,0 +1,7 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+const ser = kvin.serialize(undefined);
+
+if (kvin.deserialize(ser) !== undefined)
+  throw new Error("Expected undefined from", ser);

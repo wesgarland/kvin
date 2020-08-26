@@ -2,7 +2,7 @@
 
 const kvin = require('../kvin');
 
-var F = new Array(1000000);
+var F = new Array(1.000000);
 
 for (let i=0; i < F.length; i++)
   F[i] = Math.random();

@@ -1,5 +1,5 @@
 /**
- *  @file       serialize.js            A general-purpose library for marshaling and serializing
+ *  @file       kvin.js                A general-purpose library for marshaling and serializing
  *                                      ES objects.  This library is a functional superset of JSON
  *                                      and relies on JSON for speed, adding:
  *                                      - Typed Arrays with efficient spare representation
@@ -29,15 +29,15 @@
  *                                      cycles in less-common interpreters, such as Rhino and (especially)
  *                                      the NJS/NGS ES3 platform by Brian Basset.
  *
- *  *note* -    It is important to keep this module free of external dependencies, so that it
- *              can be easily injected into workers without module loaders during application
- *              bootstrapping / debugging.
+ *  *note* -    This module free of external dependencies, and can be loaded as either a Node module,
+ *              a BravoJS module, or as a script tag in the browser.
  *
  *  *bugs* -    There are known or suspected issues in the following areas:
  *              - Arrays which contain the same object more than once 
  *              - Arrays which mix numeric and non-numeric properties, especially if they are objects
  *              - Sparse Arrays
- *  @author     Wes Garland, wes@page.ca
+ *
+ *  @author     Wes Garland, wes@kingsds.network
  *  @date       June 2018
  *
  */
@@ -117,18 +117,30 @@ const ctors = [
 ];
 
 exports.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
+
+Number.isInteger = Number.isInteger || function Number$$isInteger_polyfill(value) {
+  return typeof value === 'number' && 
+    isFinite(value) && 
+    Math.floor(value) === value;
+};
   
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
  *
  *  @param      seen            An array objects we have already seen in this
  *                              object graph; used to track cycles.
- *  @param      po              A prepared object representing a value
+ *  @param      po              A prepared object representing a value or a primitive
  *  @param      position        A string respresenting our position within
  *                              the graph. Used only for error messages.
  *  @returns    the value encoded by po
  */
 function unprepare (seen, po, position) {
+  switch (typeof po) {
+    case 'boolean':
+    case 'number':
+    case 'string':
+      return po;
+  }
   if (po.hasOwnProperty('ctr')) {
     switch (typeof po.ctr) {
     case 'string':
@@ -148,8 +160,14 @@ function unprepare (seen, po, position) {
       throw new Error('Invalid constructor label type ' + typeof po.ctr)
     }
   }
+  if (po.hasOwnProperty('raw')) {
+    return po.raw;
+  }
   if (po.hasOwnProperty('ptv')) {
-    return po.ptv
+    return po.ptv; /* deprecated: only created by v3-6 */
+  }
+  if (po.hasOwnProperty('number')) {
+    return unprepare$number(po.number);
   }
   if (po.hasOwnProperty('fnName')) {
     return unprepare$function(seen, po, position)
@@ -237,6 +255,10 @@ function unprepare$function (seen, po, position) {
   return fn
 }
 
+function unprepare$number(arg) {
+  return parseFloat(arg);
+}
+  
 /**
  * arr:[] - Array of primitives of prepared objects
  * lst:N - repeat last element N times
@@ -398,24 +420,35 @@ function unprepare$ArrayBuffer16 (po, position) {
  * can let JSON.stringify() do any heavy lifting.
  */
 function isPrimitiveLike (o) {
-  if (o === null || (typeof o === 'object' && typeof o.toJSON !== 'undefined') ||
-      typeof o === 'string' || typeof o === 'boolean' || typeof o === 'number') {
-    return true
-  }
+  if (o === null || typeof o === 'string' || typeof o === 'boolean')
+    return true;
 
-  if (!Array.isArray(o)) {
-    return false
-  } else {
-    let keys = Object.keys(o)
-    if (keys.length !== o.length) { 
+  if (typeof o === 'number')
+    return Number.isFinite(o);
+
+  if (typeof o !== 'object')
+    return false;
+  
+  if (o.constructor === Object && Object.keys(o).length === 0)
+    return true;
+
+  if (o.constructor === Array && o.length === 0 && Object.keys(o).length === 0)
+    return true;
+
+  if (o.constructor !== Object && o.constructor !== Array)
+    return false;
+
+  if (Array.isArray(o)) {
+    if (Object.keys(o).length !== o.length) {
       return false /* sparse array or named props */
     }
   }
 
-  for (let i = 0; i < o.length; i++) {
-    if (!isPrimitiveLike(o[i])) {
-      return false
-    }
+  for (prop in o) {
+    if (!o.hasOwnProperty(prop))
+      return false;
+    if (!isPrimitiveLike(o[prop]))
+      return false;
   }
 
   return true
@@ -433,9 +466,13 @@ function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
-  if (false && isPrimitiveLike(o)) {
+  debugger;
+  if (isPrimitiveLike(o)) {
     if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
       return prepare$primitive(o, where)
+  }
+  if (typeof o === 'number') {
+    return prepare$number(o)
   }
   if (typeof o === 'undefined') {
     return prepare$undefined(o)
@@ -512,6 +549,8 @@ function prepare (seen, o, where) {
           break
         } /* else fallthrough */
       case 'number':
+        po[prop] = prepare$number(o[prop]);
+        break;
       case 'boolean':
       case 'string':
         po[prop] = prepare$primitive(o[prop], where + '.' + prop)
@@ -542,7 +581,7 @@ function prepare$Array (seen, o, where) {
   let json
   let i
   let lstTotal = 0
-  
+  debugger;
   for (i = 0; i < o.length; i++) {
     if (!o.hasOwnProperty(i)) {
       break /* sparse array */
@@ -771,14 +810,19 @@ function prepare$boxedPrimitive (o) {
   return { ctr: ctors.indexOf(o.constructor), arg: o.toString() }
 }
 
-/* Store primitives an sort-of-primitives (like object literals) directly */
+function prepare$number (n) {
+  return Number.isFinite(n) ? n : { number: n + '' };
+}
+    
+/* Store primitives and sort-of-primitives (like object literals) directly */
 function prepare$primitive (primitive, where) {
-  try {
-    return { ptv: primitive }
-  } catch (e) {
-    let e2 = new (e.constructor)(e.message + ' for ' + where)
-    throw e2
+  switch (typeof po) {
+    case 'boolean':
+    case 'number':
+    case 'string':
+      return primitive;
   }
+  return { raw: primitive };
 }
 
 function prepare$undefined (o) {
@@ -810,9 +854,10 @@ exports.unmarshal = function serialize$$unmarshal (obj) {
     case 'v4':
     case 'v5':
     case 'v6':
+    case 'v7':
       break
     default:
-      throw new Error('Invalid serialization version')
+      throw new Error(`Cannot unmarshal ${obj._serializeVerId} objects - please update Kvin`)
   }
   return unprepare([], obj.what, 'top')
 }
@@ -833,7 +878,7 @@ exports.deserialize = function deserialize (str) {
   return exports.unmarshal(JSON.parse(str))
 }
 
-exports.serializeVerId = 'v6'
+exports.serializeVerId = 'v7'
   
 if (_md) { module.declare = _md }
 /* end of module */ })
