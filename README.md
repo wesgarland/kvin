@@ -23,7 +23,7 @@ This library is safe to use on user-supplied data.
 
 ### Simple
 ```javascript
-const kvin = require('./kvin');
+const kvin = require('kvin');
 const obj = {};
 
 obj.foo = "hello, world";
@@ -36,7 +36,7 @@ console.log(obj2.foo);
 
 ### Object With Cycle
 ```javascript
-const kvin = require('./kvin');
+const kvin = require('kvin');
 const obj = {};
 
 obj.foo = "hello, world";
@@ -49,8 +49,8 @@ console.log(obj2.bar.bar.bar.bar.foo);
 ```
 
 ### Float64Array (Typed Array)
-``javascript
-const kvin = require('./kvin');
+```javascript
+const kvin = require('kvin');
 const obj = new Float64Array([1.0, 2.0, Math.PI, NaN, Infinity, -Infinity]);
 
 var obj_string = kvin.serialize(obj);
