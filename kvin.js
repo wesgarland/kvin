@@ -466,7 +466,6 @@ function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
-  debugger;
   if (isPrimitiveLike(o)) {
     if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
       return prepare$primitive(o, where)
