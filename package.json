@@ -2,25 +2,29 @@
   "name": "kvin",
   "version": "1.1.0-a",
   "description": "Rich serialization library for JavaScript",
-  "main": "kvin.js",
-  "scripts": {
-    "test": "node ./node_modules/peter/peter tests"
+  "keywords": [
+    "json",
+    "serialization"
+  ],
+  "homepage": "https://github.com/wesgarland/kvin#readme",
+  "bugs": {
+    "url": "https://github.com/wesgarland/kvin/issues"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wesgarland/kvin.git"
   },
-  "keywords": [
-    "json",
-    "serialization"
-  ],
-  "author": "Wes Garland <wes@kingsds.network>",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/wesgarland/kvin/issues"
+  "author": "Wes Garland <wes@kingsds.network>",
+  "main": "kvin.js",
+  "files": [
+    "kvin.js"
+  ],
+  "scripts": {
+    "test": "peter -v tests"
   },
-  "homepage": "https://github.com/wesgarland/kvin#readme",
-  "dependencies": {
-    "peter": "^2.1.0-a"
+  "devDependencies": {
+    "peter": "2.1.1-a",
+    "zora": "4.0.2"
   }
 }
