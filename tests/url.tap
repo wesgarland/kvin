@@ -1,0 +1,66 @@
+/**
+ * @file serialize.tap - Tests the serialize utility module's ability to
+ * serialize and deserialize different objects.
+ * @author Bryan Hoang <rbayn@kingsds.network>
+ * @date Feb. 2020
+ */
+
+const { test } = require('zora');
+
+const serializer = require('../kvin');
+
+const { serialize, deserialize } = serializer;
+
+const debug = (...args) => {
+  args.unshift('tests:serialize');
+  console.debug(...args);
+};
+
+let testSerializingValue = (t, valueToSerialize) => {
+  // Arrange
+  const { constructor } = valueToSerialize;
+  const isPrimitive = (value) => {
+    return value !== Object(value);
+  };
+
+  let deserializedValue; // eslint-disable-line prefer-const
+  let testExpression;
+
+  if (isPrimitive(valueToSerialize)) {
+    testExpression = () => deserializedValue === valueToSerialize;
+  } else {
+    testExpression = () =>
+      deserializedValue instanceof constructor &&
+      typeof deserializedValue === typeof valueToSerialize &&
+      JSON.stringify(deserializedValue) === JSON.stringify(valueToSerialize);
+  }
+
+  // Act
+  const serializedValue = serialize(valueToSerialize);
+  deserializedValue = deserialize(serializedValue);
+
+  // Assert
+  t.ok(
+    testExpression(),
+    `When a(n) ${constructor.name} is serialized (${JSON.stringify(
+      valueToSerialize,
+    )}), then it is deserialized to the same ${
+      constructor.name
+    } (${JSON.stringify(deserializedValue)})`,
+  );
+
+  debug('valueToSerialize:', valueToSerialize);
+  debug('serializedValue:', serializedValue);
+  debug('deserializedValue:', deserializedValue);
+};
+
+test('Serialize Utility', (t) => {
+  t.test('Serializing/Deserializing', (t) => {
+    testSerializingValue = testSerializingValue.bind(null, t);
+
+    const url = new URL('https://www.example.com/');
+
+    // testSerializingValue(url);
+    testSerializingValue({ url });
+  });
+});
