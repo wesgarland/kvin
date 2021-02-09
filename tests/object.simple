@@ -1,31 +1,31 @@
 #! /usr/bin/env node
 
+/* Warning: this test fails on Peter v2.1.1 due a bug in Peter where {} is not instanceof Object in the test environment */
+
+"use strict";
+
 const kvin = require('../kvin');
 
 var o = {a: undefined, b: "hello", c: 123.456, d: {a: Infinity}, e: {f: {g: {hello: "world"}}}};
-o = {a:'1'};
-//var s = kvin.serialize(o);
-//var o2 = kvin.deserialize(s);
-var m = kvin.marshal(o);
-var o2 = kvin.unmarshal(m);
+var s = kvin.serialize(o);
+var o2 = kvin.deserialize(s);
 
 function ser(o) {
   var s='';
 
   for (let el in o) {
-    s += [ el, typeof o[el], typeof o[el] === 'object' ? ser(o[el]) : o[el] ].join(',') + ':';
+    if (o.hasOwnProperty(el))
+      s += [ el, typeof o[el], typeof o[el] === 'object' ? ser(o[el]) : o[el] ].join(',') + ':';
   }
 
   return '{' + s + '}';
 }
 
-so = ser(o);
-so2 = ser(o2);
+var so1 = ser(o);
+var so2 = ser(o2);
 
-console.log('m', m);
-console.log('so', so);
-console.log('so2', so2);
-if (so !== so2)
+if (so1 !== so2) {
+  console.log('so1=', so1);
+  console.log('so2=', so2);
   throw new Error('serialized object does not match original object');
-
-
+}
