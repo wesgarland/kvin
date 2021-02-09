@@ -42,6 +42,8 @@
  *
  */
 
+"use strict";
+
 /* This prologue allows a CJS2 module's exports to be loaded with eval(readFileSync(filename)) */
 var _md
 if (typeof module === 'undefined' || typeof module.declare === 'undefined') {
@@ -444,7 +446,7 @@ function isPrimitiveLike (o) {
     }
   }
 
-  for (prop in o) {
+  for (let prop in o) {
     if (!o.hasOwnProperty(prop))
       return false;
     if (!isPrimitiveLike(o[prop]))
@@ -578,10 +580,9 @@ function prepare$Array (seen, o, where) {
   let keys = Object.keys(o)
   let lastJson = NaN
   let json
-  let i
   let lstTotal = 0
-  debugger;
-  for (i = 0; i < o.length; i++) {
+
+  for (let i = 0; i < o.length; i++) {
     if (!o.hasOwnProperty(i)) {
       break /* sparse array */
     }
@@ -770,7 +771,7 @@ function prepare$ArrayBuffer (o) {
   let naive, naiveJSONLen;
   let ab8, ab8JSONLen;
   let ab16, ab16JSONLen;
-  
+
   if (exports.tune === "speed" || exports.tune === "size" || (o.byteLength < exports.typedArrayPackThreshold)) {
     naive = { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
     if (exports.tune === "speed") {
