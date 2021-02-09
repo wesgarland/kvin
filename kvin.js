@@ -466,7 +466,6 @@ function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
-  debugger;
   if (isPrimitiveLike(o)) {
     if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
       return prepare$primitive(o, where)
@@ -533,7 +532,7 @@ function prepare (seen, o, where) {
     switch (typeof o[prop]) {
       case 'function':
       case 'object':
-        if (o[prop] !== null && typeof o[prop].toJSON === 'undefined') {
+        if (o[prop] !== null) {
           if (typeof o[prop].constructor !== 'undefined'
               && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object
               && o[prop].constructor !== Function && o[prop].constructor.constructor !== Function
