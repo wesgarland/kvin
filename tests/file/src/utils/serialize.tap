@@ -1,0 +1,119 @@
+/**
+ * @file serialize.tap - Tests the serialize utility module's ability to
+ * serialize and deserialize different objects.
+ * @author Bryan Hoang <rbayn@kingsds.network>
+ * @date Feb. 2020
+ */
+
+const { test } = require('zora');
+require('dcp-rtlink').init();
+
+const debugging = require('dcp/debugging').scope('tests');
+const serializer = require('dcp/utils/serialize');
+
+serializer.makeFunctions = true;
+const { serialize, deserialize } = serializer;
+
+const debug = (...args) => {
+  if (debugging()) {
+    args.unshift('tests:serialize');
+    console.debug(...args);
+  }
+};
+
+const replacer = (_key, value) =>
+  typeof value === 'bigint' || typeof value === 'function'
+    ? String(value)
+    : value;
+
+const toString = (value) => JSON.stringify(value, replacer);
+
+let testSerializingValue = (t, valueToSerialize) => {
+  // Arrange
+  const { constructor } = valueToSerialize;
+  const isPrimitive = (value) => {
+    return value !== Object(value);
+  };
+
+  let deserializedValue; // eslint-disable-line prefer-const
+  let testExpression;
+
+  if (isPrimitive(valueToSerialize)) {
+    testExpression = () => deserializedValue === valueToSerialize;
+  } else {
+    testExpression = () =>
+      deserializedValue instanceof constructor &&
+      typeof deserializedValue === typeof valueToSerialize &&
+      toString(deserializedValue) === toString(valueToSerialize);
+  }
+
+  // Act
+  const serializedValue = serialize(valueToSerialize);
+  deserializedValue = deserialize(serializedValue);
+
+  // Assert
+  t.ok(
+    testExpression(),
+    `When a ${constructor.name} is serialized (${toString(
+      valueToSerialize,
+    )}), then it is deserialized to the same ${constructor.name} (${toString(
+      deserializedValue,
+    )})`,
+  );
+
+  debug('valueToSerialize:', valueToSerialize);
+  debug('serializedValue:', serializedValue);
+  debug('deserializedValue:', deserializedValue);
+};
+
+test('Serialize Utility', (t) => {
+  t.test('Serializing/Deserializing', (t) => {
+    testSerializingValue = testSerializingValue.bind(null, t);
+
+    // Primitives (Unsupported: BigInt, Symbol, undefined, and null)
+    // Number
+    testSerializingValue(0);
+    // String
+    testSerializingValue('Hello, World!');
+    // Boolean
+    testSerializingValue(true);
+
+    // Non-primitives
+    // Object
+    testSerializingValue({ foo: {} });
+    // Function
+    testSerializingValue(() => {});
+    // URL
+    testSerializingValue(new URL('https://www.example.com/'));
+    // Date
+    testSerializingValue(new Date());
+    // RegExp
+    testSerializingValue(/foo/);
+
+    const mockArray = [1, 2, 3];
+    // Array
+    testSerializingValue(mockArray);
+    // Int8Array
+    testSerializingValue(new Int8Array(mockArray));
+    // Uint8Array
+    testSerializingValue(new Uint8Array(mockArray));
+    // Uint8ClampedArray
+    testSerializingValue(new Uint8ClampedArray(mockArray));
+    // Int16Array
+    testSerializingValue(new Int16Array(mockArray));
+    // Uint16Array
+    testSerializingValue(new Uint16Array(mockArray));
+    // Int32Array
+    testSerializingValue(new Int32Array(mockArray));
+    // Uint32Array
+    testSerializingValue(new Uint32Array(mockArray));
+    // Float32Array
+    testSerializingValue(new Float32Array(mockArray));
+    // Float64Array
+    testSerializingValue(new Float64Array(mockArray));
+    // BigInt64Array
+    testSerializingValue(new BigInt64Array([1n, 2n, 3n]));
+    // BigUint64Array
+    testSerializingValue(new BigUint64Array([1n, 2n, 3n]));
+  });
+});
