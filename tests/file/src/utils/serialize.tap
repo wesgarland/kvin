@@ -10,7 +10,11 @@ require('dcp-rtlink').init();
 
 const debugging = require('dcp/debugging').scope('tests');
 const serializer = require('dcp/utils/serialize');
+const { DcpURL } = require('dcp/common/dcp-url');
 
+// To test "userCtors" feature
+serializer.userCtors.dcpUrl$$URL = DcpURL;
+// Ignore security for tests
 serializer.makeFunctions = true;
 const { serialize, deserialize } = serializer;
 
@@ -48,8 +52,11 @@ let testSerializingValue = (t, valueToSerialize) => {
   }
 
   // Act
+  debug('valueToSerialize:', valueToSerialize);
   const serializedValue = serialize(valueToSerialize);
+  debug('serializedValue:', serializedValue);
   deserializedValue = deserialize(serializedValue);
+  debug('deserializedValue:', deserializedValue);
 
   // Assert
   t.ok(
@@ -60,10 +67,6 @@ let testSerializingValue = (t, valueToSerialize) => {
       deserializedValue,
     )})`,
   );
-
-  debug('valueToSerialize:', valueToSerialize);
-  debug('serializedValue:', serializedValue);
-  debug('deserializedValue:', deserializedValue);
 };
 
 test('Serialize Utility', (t) => {
@@ -84,13 +87,14 @@ test('Serialize Utility', (t) => {
     // Function
     testSerializingValue(() => {});
     // URL
-    testSerializingValue(new URL('https://www.example.com/'));
+    const url = 'https://www.example.com/';
+    testSerializingValue(new URL(url));
     // Date
     testSerializingValue(new Date());
     // RegExp
     testSerializingValue(/foo/);
 
-    const mockArray = [1, 2, 3];
+    const mockArray = [1, '1', true, undefined];
     // Array
     testSerializingValue(mockArray);
     // Int8Array
@@ -115,5 +119,8 @@ test('Serialize Utility', (t) => {
     testSerializingValue(new BigInt64Array([1n, 2n, 3n]));
     // BigUint64Array
     testSerializingValue(new BigUint64Array([1n, 2n, 3n]));
+
+    // User constructors
+    testSerializingValue(new DcpURL(url));
   });
 });
