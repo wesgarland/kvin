@@ -1,0 +1,13 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+var o, o2;
+
+o = {a: undefined, b: "hello", c: 123.456, d: {a: Infinity}, e: {f: {g: {hello: "world"}}}};
+o.o = o;
+o2 = kvin.deserialize(kvin.serialize(o));
+
+if (o2.o.o.o.o.o.o.o.o.o.o.e.f.g.hello !== "world")
+  throw new Error('serialized object does not match original object');
+
+
