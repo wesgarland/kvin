@@ -1,6 +1,6 @@
 {
   "name": "kvin",
-  "version": "1.1.2-b",
+  "version": "1.2.0-a",
   "description": "Rich serialization library for JavaScript",
   "keywords": [
     "json",
@@ -18,13 +18,15 @@
   "author": "Wes Garland <wes@kingsds.network>",
   "main": "kvin.js",
   "files": [
-    "kvin.js"
+    "LICENSE",
+    "kvin.js",
+    "tests"
   ],
   "scripts": {
-    "test": "peter tests"
+    "test": "peter tests",
+    "vtest": "peter -v tests"
   },
   "devDependencies": {
-    "peter": "^2.1.1-a",
-    "zora": "4.0.2"
+    "peter": "^2.1.3"
   }
 }
