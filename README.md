@@ -5,7 +5,7 @@
 network or storage to disk in a way that co-exists peacefully with JSON, but it supports many more
 data types, including:
 
-* undefined, null, NaN, Infinity, -Infinity
+* undefined, null, NaN, Infinity, -Infinity, -0
 * Typed Arrays (Float64Array, Int64Array, etc)
 * Object graphs with cycles
 * Arrays with enumerable, non-numeric properties
@@ -21,8 +21,8 @@ data types, including:
 This library is safe to use on user-supplied data.
 
 ## Supported Platforms
- - Browser (no dependencies needed)
- - NodeJS
+ - Browser (no framework needed)
+ - Node.js
  - BravoJS
 
 ## Examples
@@ -95,3 +95,48 @@ cost of double-stringification. Similarly, at the receiving end, use `kvin.unmar
 ```javascript
 const JSON = require('./kvin');
 ```
+
+### Loading
+#### Browser
+global KVIN object:
+```html
+<script src="/path/to/kvin.js"></script>
+<script>
+  KVIN.stringify({my: "object"});
+</script>
+```
+
+#### Node.js
+```javascript
+const kvin = require('kvin');
+kvin.serialize(foo: "bar"});
+```
+
+#### No Module System
+```javascript
+const code = "the contents of kvin.js";
+const kvin = eval(code);
+kvin.serialize({foo: "bar"});
+```
+
+### Module Exports
+#### API Functions
+| Function       | Argument	| Behaviour
+|----------------|--------------|-------------------------------------------------------------
+| serialize 	 | any		| returns a string representing the argument
+| serializeAsync | any		| returns a Promise which resolves to a string representing the argument. Any Promises encountered while traversing the object graph (argument) will be awaited, and their resolved values will be serialized. Deserialization will generate Promises which resolve to these values.
+| deserialize    | string	| returns a facsimile of the argument passed to serialize
+| stringify      | any		| alias for serialize
+| parse          | any		| alias for deserialize
+| marshal	 | any		| like serialize, but returns a JSON-compatible bject 
+| marshalAsync   | any		| like serializeAsync, but returns a JSON-compatible object
+| unmarshal	 | object	| like deserialize, but operates on marshaled objects instead of strings
+
+#### Tuning Values
+| Property   	          | Default | Description
+|-------------------------|---------|---------------------------------------------------------
+| makeFunctions           | false   | When true allows Kvin to deserialize Functions
+| typedArrayPackThreshold | 8	    | When to start trying to use islands-of-zeros encoding; bigger numbers mean faster encoding/decoding but longer strings.
+| scanArrayThreshold      | 8       | When to start trying to use sparse-array representation for Arrays; bigger numbers mean faster encoding/decoding but longer strings.
+| userCtors               | {}      | Dictionary; keys are constructor names, values are constructor functions for user-defined classes
+
