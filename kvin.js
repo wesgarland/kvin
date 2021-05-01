@@ -505,11 +505,7 @@ function prepare (seen, o, where) {
     return prepare$RegExp(o)
   }
 
-  /**
-   * Equality checks for the Promise constructor fail in the bundle due to it
-   * being evaluated in a different context.
-   */
-  if (o.constructor.name === Promise.name) {
+  if (o instanceof Promise) {
     /**
      * Let the caller replace the `resolve` property with its marshalled
      * resolved value.
@@ -918,11 +914,7 @@ exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing
 
         if (
           typeof marshalledObject[key].resolve !== 'undefined' &&
-          /**
-           * instanceof checks fail in the bundle due to it being evaluated in a
-           * different context.
-           */
-          marshalledObject[key].resolve.constructor.name === Promise.name
+          marshalledObject[key].resolve instanceof Promise
         ) {
           marshalledObject[key].resolve = await exports.marshalAsync(
             await marshalledObject[key].resolve,
