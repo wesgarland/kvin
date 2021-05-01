@@ -1,0 +1,22 @@
+#! /usr/bin/env node
+/**
+ * @file	no-module.simple
+ *		Test the ability to load Kvin without require()
+ * @author	Wes Garland, wes@kingsds.network
+ * @date	May 2021
+ */
+const fs = require('fs');
+const path = require('path');
+const dirname = path.dirname(require.resolve('../kvin'))
+const filename = path.join(dirname, 'kvin.js');
+
+const KVIN = eval(require('fs').readFileSync(filename, 'utf-8'));
+
+process.exitCode = 2;
+let circular = {hello: { world: Infinity }};
+circular.hello.hello = circular.hello;
+let str = KVIN.stringify(circular);
+let obj = KVIN.parse(str);
+if (obj && obj.hello && obj.hello.hello.world === Infinity)
+  process.exit(0);
+

@@ -44,12 +44,12 @@
 
 "use strict";
 
-/* This prologue allows a CJS2 module's exports to be loaded with eval(readFileSync(filename)) */
-var _md
+{/* This prologue allows a CJS2 module's exports to be loaded with eval(readFileSync(filename)) */
+let originalModuleDeclare;
 if (typeof module === 'undefined' || typeof module.declare === 'undefined') {
-  _md = (typeof module === 'object') ? module.declare : null
+  originalModuleDeclare = (typeof module === 'object') ? module.declare : null
   if (typeof module !== 'object') {
-    module = { exports: {} }  // eslint-disable-line
+    var module = { exports: {} }  // eslint-disable-line
   }
   module.declare = function moduleUnWrapper (deps, factory) {
     factory(null, module.exports, module)
@@ -470,7 +470,6 @@ function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
-  debugger
   if (typeof o === 'number') {
     return prepare$number(o)
   }
@@ -1000,5 +999,8 @@ exports.parse = exports.deserialize;
 exports.stringify = exports.serialize;
 exports.stringifyAsync = exports.serializeAsync;
 
-if (_md) { module.declare = _md }
-/* end of module */ })
+if (originalModuleDeclare)
+  module.declare = originalModuleDeclare;
+else if (typeof window === 'object')
+  window.KVIN = exports;
+/* end of module */ })}

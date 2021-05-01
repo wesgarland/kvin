@@ -1,0 +1,35 @@
+<!doctype type>
+<html>
+  <head>
+  <!-- @file    index.html
+                Basic browser smoke test for VanillaJS Kvin
+       @author  Wes Garland, wes@kingsds.network
+       @date    May 2021
+    -->
+    <title>Kvin Test</title>
+  </head>
+  <body>
+    Kvin Tests: <input type="text" id="output" value="Loading..">
+  </body>
+  <script src="../kvin.js"></script>
+  <script>
+
+  function log() {
+    document.getElementById('output').value = Array.from(arguments).join(' ');
+  }
+  log('working');
+
+  let circular = {hello: { world: Infinity }};
+  circular.hello.hello = circular.hello;
+
+  let str = KVIN.stringify(circular);
+  let obj = KVIN.parse(str);
+
+  if (obj && obj.hello && obj.hello.hello.world === Infinity)
+    log('passed');
+  else
+    log('failed:', inf);
+
+  </script>
+</html>      
+

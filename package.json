@@ -20,7 +20,8 @@
   "files": [
     "LICENSE",
     "kvin.js",
-    "tests"
+    "tests",
+    "browser-tests"
   ],
   "scripts": {
     "test": "peter tests",
