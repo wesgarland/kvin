@@ -1,38 +1,17 @@
 /**
- * @file serialize.tap - Tests the serialize utility module's ability to
- * serialize and deserialize different objects.
+ * @file        serialize.tap
+ *              Test Kvin's ability to serialize and deserialize different objects.
  *
- * Includes dcpConfig as a test case.
- *
- * * Warning: The serialization of dcpConfig can still fail in the bundle due to
- *   it being executed in a different context.
- *
- * @author Bryan Hoang <rbayn@kingsds.network>
- * @date Feb. 2020
+ * @author      Bryan Hoang <bryan@kingsds.network>
+ * @date        Feb. 2020
  */
-
 const { test } = require('zora');
-require('dcp-rtlink').init();
 
-const debugging = require('dcp/debugging').scope('tests');
-const serializer = require('dcp/utils/serialize');
-const { DcpURL } = require('dcp/common/dcp-url');
-const { Address } = require('dcp/dcp-client/wallet');
-const dcpConfig = require('dcp/node-libs/config').load();
-
-// To test "userCtors" feature
-serializer.userCtors.dcpUrl$$URL = DcpURL;
-serializer.userCtors.dcpEth$$Address = Address;
-// Ignore security for tests
-serializer.makeFunctions = true;
+const serializer = require('../kvin');
 const { serializeAsync, deserialize } = serializer;
 
-const debug = (...args) => {
-  if (debugging()) {
-    args.unshift('tests:serialize');
-    console.debug(...args);
-  }
-};
+// Ignore security for tests
+serializer.makeFunctions = true;
 
 const replacer = (_key, value) =>
   typeof value === 'bigint' || typeof value === 'function'
@@ -93,12 +72,8 @@ let testSerializingValue = async (t, valueToSerialize) => {
   }
 
   // Act
-  debug('valueToSerialize:', valueToSerialize);
   const serializedValue = await serializeAsync(valueToSerialize);
-
-  debug('serializedValue:', serializedValue);
   deserializedValue = deserialize(serializedValue);
-  debug('deserializedValue:', deserializedValue);
 
   // Assert
   t.ok(
@@ -160,10 +135,6 @@ test('Serialize Utility', async (t) => {
       // BigUint64Array
       new BigUint64Array([1n, 2n, 3n]),
       // User constructors
-      // DcpURL
-      dcpConfig.scheduler.location,
-      // Address
-      dcpConfig.scheduler.identity,
     ];
 
     for (const value of testSerializationValues) {
@@ -174,7 +145,6 @@ test('Serialize Utility', async (t) => {
     const testSerializationValuesPromises = testSerializationValues.map(
       (value) => Promise.resolve(value),
     );
-    testSerializationValuesPromises.push(dcpConfig);
 
     for (const value of testSerializationValuesPromises) {
       await testSerializingValue(value);

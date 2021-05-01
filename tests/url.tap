@@ -1,7 +1,7 @@
 /**
  * @file serialize.tap - Tests the serialize utility module's ability to
  * serialize and deserialize different objects.
- * @author Bryan Hoang <rbayn@kingsds.network>
+ * @author Bryan Hoang <bryan@kingsds.network>
  * @date Feb. 2020
  */
 
