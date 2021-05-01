@@ -988,7 +988,7 @@ exports.serialize = function serialize (what) {
  * @param   {*} value The value to serialize
  * @returns {Promise<string>} A JSON serialization representing the value
  */
-exports.serializeAsync = async function serializeAsync (value) {
+exports.serializeAsync = async function serializeAsync(value) {
   return JSON.stringify(await exports.marshalAsync(value))
 }
 
