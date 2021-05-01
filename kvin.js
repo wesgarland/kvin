@@ -993,6 +993,11 @@ exports.deserialize = function deserialize (str) {
 }
 
 exports.serializeVerId = 'v7'
-  
+
+/* JSON-like exports */
+exports.parse = exports.deserialize;
+exports.stringify = exports.serialize;
+exports.stringifyAsync = exports.serializeAsync;
+
 if (_md) { module.declare = _md }
 /* end of module */ })

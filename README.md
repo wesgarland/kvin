@@ -16,8 +16,14 @@ data types, including:
 * Instances of user-defined classes
 * Boxed primitives (excluding Symbol)
 * Functions (including enumerable properties)
+* Promises which always resolve to any of the above
 
 This library is safe to use on user-supplied data.
+
+## Supported Platforms
+ - Browser (no dependencies needed)
+ - NodeJS
+ - BravoJS
 
 ## Examples
 
@@ -66,7 +72,7 @@ the object graph.  We rely on the /de-facto/ enumeration order of properties in 
 browsers since the dawn of time; namely, that enumeration order is object insertion order. This could cause bugs with objects with
 cycles in less-common interpreters, such as Rhino and the NJS/NGS ES3 platform by Brian Basset.
 
-There many be different ways to encode the same data when marshaling; these techniques can sometimes be chosen by heuristic
+There may be different ways to encode the same data when marshaling; these techniques can sometimes be chosen by heuristic
 or performance tuning properties, but every possible encoding can be decoded by the unmarshal code.
 
 Typed Arrays are encoded by encoding the direct underlying bits into 8-bit characters which then wind up as UTF-8 strings. There 
@@ -77,10 +83,15 @@ size.
 ### Compression
 We recommend transmitting all data over the network compressed at the network layer (e.g. content-transfer-encoding: gzip). The
 serializer, in certain modes, will do a sort of "run length limited" encoding on Typed Array data; specifically, the islz
-"Islands of Zero" encoding is optimized for mostly-empty blocks of memory (our initial use for this library was images
-for in astrophysics application).  
+"Islands of Zero" encoding is optimized for mostly-empty blocks of memory (our initial use for this library was for images
+in an astrophysics application).  
 
 ### Interoperation with JSON
 Kvin and JSON go together like peas and carrots. If you are creating a payload object which will be stringified by JSON in the
 future, do NOT use `kvin.serialize()`; instead, use `kvin.marshal()`. This will get you all the benefits of Kvin without the
 cost of double-stringification. Similarly, at the receiving end, use `kvin.unmarshal()` to reconstruct your data.
+
+#### Substitution for JSON
+```javascript
+const JSON = require('./kvin');
+```
