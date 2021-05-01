@@ -192,6 +192,14 @@ function unprepare (seen, po, position) {
   if (po.hasOwnProperty('undefined')) {
     return undefined
   }
+
+  if (Object.hasOwnProperty.call(po, 'resolve')) {
+    // Unprepare a Promise by assuming po.resolve is a marshalled value.
+    const promise = Promise.resolve(exports.unmarshal(po.resolve));
+    seen.push(promise);
+    return promise;
+  }
+
   if (po.hasOwnProperty('seen')) {
     if (!seen.hasOwnProperty(po.seen)) {
       throw new Error('Seen-list corruption detected at index ' + po.seen)
@@ -495,6 +503,18 @@ function prepare (seen, o, where) {
   }
   if (o.constructor === RegExp) {
     return prepare$RegExp(o)
+  }
+
+  /**
+   * Equality checks for the Promise constructor fail in the bundle due to it
+   * being evaluated in a different context.
+   */
+  if (o.constructor.name === Promise.name) {
+    /**
+     * Let the caller replace the `resolve` property with its marshalled
+     * resolved value.
+     */
+    return { resolve: o };
   }
 
   if (typeof o.constructor === 'undefined') {
@@ -855,6 +875,80 @@ exports.marshal = function serialize$$marshal (what) {
   return {_serializeVerId: exports.serializeVerId, what: prepare([], what, 'top')}
 }
 
+/**
+ * Prepare a value that is a Promise or contains a Promise for serialization.
+ *
+ * Removes cycles in objects to enable stringification using `JSON.stringify`.
+ *
+ * @param   {*} value A supported js value that can be marshalled
+ * @returns {Promise<object>} An object which can be serialized with
+ * `JSON.stringify`
+ */
+exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing = false) {
+  /**
+   * First, have marshal memoize returned an object graph with any instances of
+   * Promise found during the marshal operation with { resolve: X }, where X is
+   * an instance of Promise.
+   *
+   * If we're recursing, we're traversing a marshaled object and shouldn't
+   * redundantly marshal a nested part of it.
+   */
+  let marshalledObject;
+  if (!isRecursing) {
+    marshalledObject = exports.marshal(value);
+  } else {
+    marshalledObject = value;
+  }
+
+  /**
+   * Then, traverse the marshalled object, looking for these Promise memos
+   * (resolve property). await the promise (X above) and replace it in the
+   * marshaled object with the marshaled representation of the resolve value.
+   */
+  for (const key in marshalledObject) {
+    if (!Object.hasOwnProperty.call(marshalledObject, key)) {
+      continue;
+    }
+
+    switch (typeof marshalledObject[key]) {
+      case 'object':
+        if (marshalledObject[key] === null) {
+          continue;
+        }
+
+        if (
+          typeof marshalledObject[key].resolve !== 'undefined' &&
+          /**
+           * instanceof checks fail in the bundle due to it being evaluated in a
+           * different context.
+           */
+          marshalledObject[key].resolve.constructor.name === Promise.name
+        ) {
+          marshalledObject[key].resolve = await exports.marshalAsync(
+            await marshalledObject[key].resolve,
+          );
+        }
+
+        /**
+         * Recursively traverse the marshalled object
+         *
+         * Operating on the marshalled object graph means we know for certain we
+         * are working on a directed acyclic graph (DAG); prepares's "seen"
+         * array argument expresses cycles separately.
+         */
+        marshalledObject[key] = await exports.marshalAsync(
+          marshalledObject[key],
+          true,
+        );
+        break;
+      default:
+        break;
+    }
+  }
+
+  return marshalledObject;
+}
+
 /** Turn a marshaled (prepared) value back into its original form
  *  @param      obj     a prepared object - the output of exports.marshal()
  *  @returns    object  an object resembling the object originally passed to exports.marshal()
@@ -886,6 +980,16 @@ exports.unmarshal = function serialize$$unmarshal (obj) {
  */
 exports.serialize = function serialize (what) {
   return JSON.stringify(exports.marshal(what))
+}
+
+/**
+ * Serialize a value that is a Promise or contains Promises.
+ *
+ * @param   {*} value The value to serialize
+ * @returns {Promise<string>} A JSON serialization representing the value
+ */
+exports.serializeAsync = async function serializeAsync (value) {
+  return JSON.stringify(await exports.marshalAsync(value))
 }
 
 /** Deserialize a value.
