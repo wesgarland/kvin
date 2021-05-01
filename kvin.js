@@ -33,7 +33,7 @@
  *              a BravoJS module, or as a script tag in the browser.
  *
  *  *bugs* -    There are known or suspected issues in the following areas:
- *              - Arrays which contain the same object more than once 
+ *              - Arrays which contain the same object more than once
  *              - Arrays which mix numeric and non-numeric properties, especially if they are objects
  *              - Sparse Arrays
  *
@@ -80,8 +80,8 @@ exports.scanArrayThreshold = 8
 /** Maxmimum number of arguments we can pass to a function in this engine.
  * @todo this needs to be detected at startup based on environment
  */
-const _vm_fun_maxargs = 100000 
-  
+const _vm_fun_maxargs = 100000
+
 const littleEndian = (function () {
   let ui16 = new Uint16Array(1)
   let ui8
@@ -213,9 +213,9 @@ function unprepare$object (seen, po, position) {
   } else {
     constructor = ctors[po.ctr]
   }
-  
+
   if (po.hasOwnProperty('arg')) {
-    o = new constructor(po.arg) 
+    o = new constructor(po.arg)
   } else {
     o = new constructor() // eslint-disable-line
   }
@@ -305,7 +305,7 @@ function unprepare$Array (seen, po, position) {
       }
     }
   }
-  
+
   if (po.hasOwnProperty('ps')) {
     for (let prop in po.ps) {
       if (typeof po.ps[prop] === 'object') {
@@ -319,12 +319,12 @@ function unprepare$Array (seen, po, position) {
   if (po.len) {
     a.length = po.len
   }
-  
+
   return a
 }
 
 /** The ab8 (array buffer 8 bit) encoding encodes TypedArrays and related types by
- *  converting them to Latin-1 strings full of binary data in 8-bit words. 
+ *  converting them to Latin-1 strings full of binary data in 8-bit words.
  *
  *  The isl8 (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
@@ -503,8 +503,26 @@ function prepare (seen, o, where) {
   }
 
   ret = { ctr: ctors.indexOf(o.constructor), ps: po }
-  if (ret.ctr === -1)
-    ret.ctr = o.constructor.name || ctors.indexOf(Object)
+  if (ret.ctr === -1) {
+    /**
+     * If the constructor is `Object` from another context, the indexOf check
+     * would fail. So if the name of `o`'s constructor matches one of the valid
+     * constructors, use the index from the mapped array to get the proper
+     * constructor index.
+     */
+    const constructorNames = ctors.map((ctor) => ctor.name);
+    const ctrIndex = constructorNames.indexOf(o.constructor.name);
+    if (ctrIndex !== -1) {
+      ret.ctr = ctrIndex;
+      /**
+       * Fix the `o`'s constructor to match its constructor in the current
+       * context so that later equality/instanceof checks don't fail.
+       */
+      o.constructor = ctors[ctrIndex];
+    } else {
+      ret.ctr = o.constructor.name || ctors.indexOf(Object)
+    }
+  }
 
   if (typeof o === 'function') {
     ret.fnName = o.name
@@ -516,7 +534,7 @@ function prepare (seen, o, where) {
     if (o.constructor !== Object)
       ret.arg = o.toString()
   }
-  
+
   if (typeof o.hasOwnProperty === 'undefined') {
     console.log('Warning: ' + where + ' is missing .hasOwnProperty -- skipping')
     return prepare$undefined(o)
@@ -591,7 +609,7 @@ function prepare$Array (seen, o, where) {
     } else {
       pa.arr.push(prepare(seen, o[i], where + '.' + i))
     }
-   
+
     json = JSON.stringify(pa.arr[pa.arr.length - 1])
     if (json === lastJson) {
       if (pa.arr[pa.arr.length - 2].lst) {
@@ -667,7 +685,7 @@ function notUnicode(s) {
 /** Prepare an ArrayBuffer into UCS-2, returning null when we cannot guarantee
  *  that the UCS-2 is also composed of valid UTF-16 code points
  *
- *  @see unprepare$ArrayBuffer16 
+ *  @see unprepare$ArrayBuffer16
  */
 function prepare$ArrayBuffer16 (o) {
   let ret = { ctr: ctors.indexOf(o.constructor) }
@@ -676,7 +694,7 @@ function prepare$ArrayBuffer16 (o) {
 
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
-  
+
   if (littleEndian) {
     let ui16 = new Uint16Array(o.buffer, o.byteOffset, nWords)
     for (let i = 0; i < nWords; i++) {
@@ -721,7 +739,7 @@ function prepare$ArrayBuffer16 (o) {
   return ret
 }
 
-/** Encode an ArrayBuffer (TypedArray) into a string composed solely of Latin-1 characters. 
+/** Encode an ArrayBuffer (TypedArray) into a string composed solely of Latin-1 characters.
  *  Strings with many zeroes will be represented as sparse-string objects.
  */
 function prepare$ArrayBuffer8 (o) {
@@ -729,7 +747,7 @@ function prepare$ArrayBuffer8 (o) {
 
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
-  
+
   const mss = _vm_fun_maxargs - 1
   let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
   let segments = []
@@ -739,7 +757,7 @@ function prepare$ArrayBuffer8 (o) {
     segments.push(String.fromCharCode.apply(null, ui8.slice(i * mss, (i + 1) * mss)))
   }
   s = segments.join('')
-  
+
   let manyZeroes = '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000'
   if (s.indexOf(manyZeroes) === -1) {
     ret.ab8 = s
