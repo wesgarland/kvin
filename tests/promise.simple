@@ -1,0 +1,22 @@
+#! /usr/bin/env node
+
+/**
+ * @file        promise.simple
+ *              Simple test for serialization of Promise-wrapped values
+ * @author      Wes Garland, wes@kingsds.network
+ * @date        May 2021
+ */
+
+const assert = require('assert');
+const KVIN = require('../kvin');
+
+var original = Promise.resolve("hello world");
+var str = await KVIN.stringifyAsync(original);
+var copy = KVIN.parse(str);
+
+assert(copy instanceof Promise);
+assert(await copy === "hello world");
+
+
+
+

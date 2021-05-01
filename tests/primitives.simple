@@ -1,0 +1,35 @@
+#! /usr/bin/env node
+/**
+ * @file        primitives.simple
+ *              Simple test to check (de)serialization of primitive values with Kvin.
+ *
+ * @author      Wes Garland, wes@kingsds.network
+ * @date        May 2021
+ */
+const KVIN = require('../kvin');
+var primitives = [
+  "hello world",
+  123,
+  Infinity,
+  -Infinity,
+  0,
+  NaN,
+  null
+];
+
+for (let primitive of primitives) 
+{
+  str = KVIN.stringify(primitive);
+  val = KVIN.parse(str);
+
+  /* Special case: NaN */
+  if (typeof val === 'number' && isNaN(val) && typeof primitive === 'number' && isNaN(primitive)) 
+    continue;
+
+  if (val !== primitive) 
+  {
+    process.exitCode = 1;
+    console.error('Failed to (de)serialize primitive', primitive, 'correctly');
+  }
+}
+
