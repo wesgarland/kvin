@@ -1,0 +1,23 @@
+const assert = require('assert');
+const serializer = require('../kvin');
+
+console.debug('Serializer:', serializer);
+
+const serializerExports = [
+  'makeFunctions',
+  'typedArrayPackThreshold',
+  'scanArrayThreshold',
+  'userCtors',
+  'marshal',
+  'unmarshal',
+  'serialize',
+  'deserialize',
+  'serializeVerId',
+];
+
+serializerExports.forEach((exportedMember) =>
+  assert(
+    Object.prototype.hasOwnProperty.call(serializer, exportedMember),
+    `dcp/utils/serialize exports ${exportedMember}`,
+  ),
+);
