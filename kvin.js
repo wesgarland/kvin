@@ -120,12 +120,6 @@ const ctors = [
 
 exports.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
 
-Number.isInteger = Number.isInteger || function Number$$isInteger_polyfill(value) {
-  return typeof value === 'number' && 
-    isFinite(value) && 
-    Math.floor(value) === value;
-};
-  
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
  *
@@ -476,12 +470,13 @@ function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
+  debugger
+  if (typeof o === 'number') {
+    return prepare$number(o)
+  }
   if (isPrimitiveLike(o)) {
     if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
       return prepare$primitive(o, where)
-  }
-  if (typeof o === 'number') {
-    return prepare$number(o)
   }
   if (typeof o === 'undefined') {
     return prepare$undefined(o)
@@ -845,7 +840,13 @@ function prepare$boxedPrimitive (o) {
 }
 
 function prepare$number (n) {
-  return Number.isFinite(n) ? n : { number: n + '' };
+  if (!Number.isFinite(n))
+    return { number: n + '' };
+
+  if (1/n === -Infinity)
+    return { json: "-0" };
+
+  return n;
 }
     
 /* Store primitives and sort-of-primitives (like object literals) directly */

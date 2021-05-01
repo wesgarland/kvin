@@ -1,0 +1,24 @@
+#! /usr/bin/env node
+/**
+ * @file        primitives.simple
+ *              Simple test to check (de)serialization of primitive values with Kvin.
+ *
+ * @author      Wes Garland, wes@kingsds.network
+ * @date        May 2021
+ */
+const KVIN = require('../kvin');
+
+function isNegativeZero(number)
+{
+  if (number !== 0)
+    return false;
+}
+
+str = KVIN.stringify(-0);
+val = KVIN.parse(str);
+
+if (1/val !== -Infinity)
+{
+  console.error('Failed to (de)serialize negative zero; got', val, 'from', str, 'instead');
+  process.exitCode = 1;
+}
