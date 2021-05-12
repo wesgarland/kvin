@@ -1,0 +1,11 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin.js');
+
+var o = {'hello': 'world'};
+o.o = o;
+var s=kvin.serialize(o);
+var O = kvin.deserialize(s);
+
+if (O.o.o.o.hello !== 'world')
+  process.exit(1);

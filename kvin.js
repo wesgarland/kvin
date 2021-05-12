@@ -423,7 +423,7 @@ function unprepare$ArrayBuffer16 (po, position) {
  * iterate over their properties in order to serialize them; we
  * can let JSON.stringify() do any heavy lifting.
  */
-function isPrimitiveLike (o) {
+function isPrimitiveLike (o, seen) {
   if (o === null || typeof o === 'string' || typeof o === 'boolean')
     return true;
 
@@ -448,10 +448,13 @@ function isPrimitiveLike (o) {
     }
   }
 
+  seen = seen.concat(o);
   for (let prop in o) {
     if (!o.hasOwnProperty(prop))
       return false;
-    if (!isPrimitiveLike(o[prop]))
+    if (seen.indexOf(o[prop]) !== -1)
+      return false;
+    if (!isPrimitiveLike(o[prop], seen))
       return false;
   }
 
@@ -473,7 +476,7 @@ function prepare (seen, o, where) {
   if (typeof o === 'number') {
     return prepare$number(o)
   }
-  if (isPrimitiveLike(o)) {
+  if (isPrimitiveLike(o, seen)) {
     if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
       return prepare$primitive(o, where)
   }
@@ -614,7 +617,7 @@ function prepare$Array (seen, o, where) {
     if (!o.hasOwnProperty(i)) {
       break /* sparse array */
     }
-    if (typeof o[i] !== 'object' && isPrimitiveLike(o[i])) {
+    if (typeof o[i] !== 'object' && isPrimitiveLike(o[i], seen)) {
       pa.arr.push(o[i])
     } else {
       pa.arr.push(prepare(seen, o[i], where + '.' + i))
@@ -666,7 +669,7 @@ function prepare$Array (seen, o, where) {
       if (!pa.hasOwnProperty('ps')) {
         pa.ps = {}
       }
-      if (typeof o[key] !== 'object' && isPrimitiveLike(o[key])) {
+      if (typeof o[key] !== 'object' && isPrimitiveLike(o[key], seen)) {
         pa.ps[key] = o[key]
       } else {
         pa.ps[key] = prepare(seen, o[key], where + '.' + key)
