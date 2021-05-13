@@ -1,6 +1,6 @@
 {
   "name": "kvin",
-  "version": "1.2.0-e",
+  "version": "1.2.1",
   "description": "Rich serialization library for JavaScript",
   "keywords": [
     "json",
