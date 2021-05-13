@@ -115,8 +115,10 @@ const ctors = [
   Boolean,
   Array,
   Function,
-  URL,
 ];
+if (typeof URL !== 'undefined'){
+  ctors.push(URL)
+}
 
 exports.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
 
@@ -1006,4 +1008,6 @@ if (originalModuleDeclare)
   module.declare = originalModuleDeclare;
 else if (typeof window === 'object')
   window.KVIN = exports;
+else if (typeof globalThis === 'object')
+  globalThis.KVIN = exports;
 /* end of module */ })}
