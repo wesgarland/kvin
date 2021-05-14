@@ -1,0 +1,35 @@
+#! /usr/bin/env node
+/**
+ * @file        vanilla-module.simple
+ *              Test the ability to load Kvin without require() in
+ *              a simulated web browser with no framework.
+ *
+ * @author      Wes Garland, wes@kingsds.network
+ * @date        May 2021
+ */
+const fs = require('fs');
+const path = require('path');
+const dirname = path.dirname(require.resolve('../kvin'))
+const filename = path.join(dirname, 'kvin.js');
+
+process.exitCode = 2;
+
+const KVIN = (function browserLikeIIFE(window) {
+  var global = undefined;
+  var require = undefined;
+  var module = undefined;
+  var exports = undefined;
+  var globalThis = window;
+  
+  /* <script> tag simulation */
+  eval(fs.readFileSync(filename, 'utf-8'));
+  
+  return window.KVIN;
+})({});
+
+let circular = {hello: { world: Infinity }};
+circular.hello.hello = circular.hello;
+let str = KVIN.stringify(circular);
+let obj = KVIN.parse(str);
+if (obj && obj.hello && obj.hello.hello.world === Infinity)
+  process.exit(0);
