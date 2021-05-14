@@ -45,18 +45,47 @@
 "use strict";
 
 {/* This prologue allows a CJS2 module's exports to be loaded with eval(readFileSync(filename)) */
-let originalModuleDeclare;
-if (typeof module === 'undefined' || typeof module.declare === 'undefined') {
-  originalModuleDeclare = (typeof module === 'object') ? module.declare : null
-  if (typeof module !== 'object') {
-    var module = { exports: {} }  // eslint-disable-line
-  }
-  module.declare = function moduleUnWrapper (deps, factory) {
-    factory(null, module.exports, module)
-    return module.exports
-  }
-}
+  var module;
+  let moduleSystemType;
+  let realModule = module;
+  
+  if (typeof __webpack_require__ !== 'undefined')
+    moduleSystemType = 'webpack';
+  else if (typeof module !== 'undefined' && typeof module.declare !== 'undefined')
+    moduleSystemType = 'cjs2';
+  else if (typeof module !== 'undefined' && typeof require === 'function' && typeof exports !== 'undefined' && module.exports === exports)
+    moduleSystemType = 'nodejs';
+  else if (typeof exports !== 'undefined' && typeof require === 'function')
+    moduleSystemType = 'cjs1';
+  else
+    moduleSystemType = 'none';
 
+  module = Object.assign({}, realModule);
+
+  if (moduleSystemType === 'nodejs' || moduleSystemType === 'webpack' || moduleSystemType === 'cjs1') {
+    module.declare = function kvin$$cjs1$$moduleDeclare(deps, factory) {
+      factory(null, exports, null);
+      module = realModule;
+      return exports;
+    };
+  } else if (moduleSystemType === 'cjs2') {
+    module = realModule;
+  } else if (moduleSystemType === 'none') {
+    module.declare = function kvin$$cjs1$$moduleDeclare(deps, factory) {
+      let exports = {};
+      factory(null, exports, null);
+      module = realModule;
+
+      if (typeof window === 'object')
+        window.KVIN = exports;
+      if (typeof globalThis === 'object')
+        globalThis.KVIN = exports;
+
+      return exports;
+    };
+  }
+/* Now initialize the module by invoking module.declare per CommonJS Modules/2.0-draft8 */
+  
 /* eslint-disable indent */ module.declare([], function (require, exports, module) {
 /*
  * Set exports.makeFunctions = true to allow deserializer to make functions.
@@ -1003,11 +1032,4 @@ exports.serializeVerId = 'v7'
 exports.parse = exports.deserialize;
 exports.stringify = exports.serialize;
 exports.stringifyAsync = exports.serializeAsync;
-
-if (originalModuleDeclare)
-  module.declare = originalModuleDeclare;
-else if (typeof window === 'object')
-  window.KVIN = exports;
-else if (typeof globalThis === 'object')
-  globalThis.KVIN = exports;
 /* end of module */ })}

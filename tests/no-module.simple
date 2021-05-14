@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const dirname = path.dirname(require.resolve('../kvin'))
+debugger;
 const filename = path.join(dirname, 'kvin.js');
 
 const KVIN = eval(require('fs').readFileSync(filename, 'utf-8'));
