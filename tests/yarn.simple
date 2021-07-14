@@ -27,7 +27,7 @@ let c = kvin.unmarshal(b);
 
 let allSame = true;
 for (let i = 0; i < c.length; i++) {
-  for (let j = 0; j < c.length; j++) {
+  for (let j = 0; j < c[i].length; j++) {
     if (a[i][j] !== c[i][j]) {
       allSame = false;
       console.error(`diff at line ${i+1}, character ${j+1}; ${a[i][j]} !== ${c[i][j]}`);
