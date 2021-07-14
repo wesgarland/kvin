@@ -317,7 +317,7 @@ function unprepare$Array (seen, po, position) {
       last = po.arr[i]
     } else {
       a.push(po.arr[i])
-      last = prepare$primitive(a[i], 'unprepare$Array')
+      last = prepare$primitive(a[a.length-1], 'unprepare$Array')
     }
   }
 
