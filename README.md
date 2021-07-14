@@ -128,7 +128,7 @@ kvin.serialize({foo: "bar"});
 | deserialize    | string	| returns a facsimile of the argument passed to serialize
 | stringify      | any		| alias for serialize
 | parse          | any		| alias for deserialize
-| marshal	 | any		| like serialize, but returns a JSON-compatible bject 
+| marshal	 | any		| like serialize, but returns a JSON-compatible object 
 | marshalAsync   | any		| like serializeAsync, but returns a JSON-compatible object
 | unmarshal	 | object	| like deserialize, but operates on marshaled objects instead of strings
 

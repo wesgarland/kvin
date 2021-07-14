@@ -1,14 +1,14 @@
 #! /usr/bin/env node
 /**
- * @file	yarn.simple
- *		Test case derived from rendering bug that demonstates bug in lst encoding
- * @author	Ryan Saweczko, ryansaweczko@kingsds.network
+ * @file        yarn.simple
+ *              Test case derived from rendering bug that demonstates bug in lst encoding
+ * @author      Ryan Saweczko, ryansaweczko@kingsds.network
  *              Wes Garland, wes@kingsds.network
- * @date	July 2021
+ * @date        July 2021
  */
 const kvin = require('../kvin');
 
-let a = [
+const a = [
   [0,0,0,0,0,0,0,0,0],
   [0,1,2,3,4,5,6,7,8],
   [1,2,3,4,5,6,7,8,9],
@@ -22,13 +22,16 @@ let a = [
   [0,0,0,0,0,0,0,0,0]
 ];
 
-let b = kvin.marshal(a);
-let c = kvin.unmarshal(b);
+const b = kvin.marshal(a);
+const c = kvin.unmarshal(b);
 
-let allSame = true;
-for (let i = 0; i < c.length; i++) {
-  for (let j = 0; j < c.length; j++) {
-    if (a[i][j] !== c[i][j]) {
+var allSame = true;
+for (let i = 0; i < c.length; i++)
+{
+  for (let j = 0; j < c.length; j++)
+  {
+    if (a[i][j] !== c[i][j])
+    {
       allSame = false;
       console.error(`diff at line ${i+1}, character ${j+1}; ${a[i][j]} !== ${c[i][j]}`);
     }
