@@ -1,0 +1,45 @@
+#! /usr/bin/env node
+/**
+ * @file	yarn.simple
+ *		Test case derived from rendering bug that demonstates bug in lst encoding
+ * @author	Ryan Saweczko, ryansaweczko@kingsds.network
+ *              Wes Garland, wes@kingsds.network
+ * @date	July 2021
+ */
+const kvin = require('../kvin');
+
+let a = [
+  [0,0,0,0,0,0,0,0,0],
+  [0,1,2,3,4,5,6,7,8],
+  [1,2,3,4,5,6,7,8,9],
+  [0,1,0,0,0,1,1,1,0],
+  [0,0,0,0,0,0,1,1,0],
+  [0,0,0,0,0,0,0,1,0],
+  [0,0,0,0,0,0,0,1,0],
+  [0,0,0,0,0,0,0,1,0],
+  [0,0,0,0,0,0,1,1,0],
+  [0,1,0,0,0,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0]
+];
+
+let b = kvin.marshal(a);
+let c = kvin.unmarshal(b);
+
+let allSame = true;
+for (let i = 0; i < c.length; i++) {
+  for (let j = 0; j < c.length; j++) {
+    if (a[i][j] !== c[i][j]) {
+      allSame = false;
+      console.error(`diff at line ${i+1}, character ${j+1}; ${a[i][j]} !== ${c[i][j]}`);
+    }
+  }
+}
+
+if (!allSame)
+{
+  console.error('marshaled+json:', JSON.stringify(b));
+  console.error('original:',    `[\n  ${a.join(',\n  ')}\n]`);
+  console.error('unmarshaled:', `[\n  ${c.join(',\n  ')}\n]`);
+}
+
+process.exit(allSame ? 0 : 1);
