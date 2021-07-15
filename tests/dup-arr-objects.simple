@@ -1,0 +1,19 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+const x = {};
+const a = [ {v:1, x}, {v:1, x} ];
+const mA = kvin.marshal(a);
+const uA = kvin.unmarshal(mA);
+
+if (uA[0] === uA[1])
+{
+  console.error('Objects should be identical but not the same');
+  process.exit(1);
+}
+
+if (uA[0].x === uA[1].x)
+{
+  console.error('Objects properties should be identical but not the same');
+  process.exit(1);
+}

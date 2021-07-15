@@ -188,6 +188,13 @@ function unprepare (seen, po, position) {
     }
   }
   if (po.hasOwnProperty('raw')) {
+    if (typeof po.raw === 'object' && po.raw !== null)
+    {
+      if (!po.used)
+        po.used = true;
+      else
+        return JSON.parse(JSON.stringify(po.raw));
+    }
     return po.raw;
   }
   if (po.hasOwnProperty('ptv')) {
