@@ -1,0 +1,26 @@
+#! /usr/bin/env node
+/**
+ * @file        same-arr-objects
+ *              Test what happens with same vs identical objects
+ * @author      Wes Garland, wes@kingsds.network
+ * @date        July 2021
+ *
+ * @note	This test is known to fail, see issue 8
+ */
+'use strict';
+
+const kvin = require('../kvin');
+
+const x = {a:123};
+const a = [x,x,{a:123},x,x];
+const A = kvin.parse(kvin.serialize(a));
+
+if (A[2] === A[0])
+  throw new Error('A[2] should not === A[0]');
+
+A[2] = A[0];
+for (let i=1; i < A.length; i++)
+{
+  if (A[i] !== A[0])
+    throw new Error(`A[${i}] must === A[0]`);
+}
