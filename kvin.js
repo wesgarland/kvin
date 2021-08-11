@@ -87,6 +87,14 @@
 /* Now initialize the module by invoking module.declare per CommonJS Modules/2.0-draft8 */
   
 /* eslint-disable indent */ module.declare([], function (require, exports, module) {
+
+/** @constructor */
+function KVIN(standardObject)
+{
+  if (standardObject) {
+    this.standardObject = standardObject;
+  }
+}
 /*
  * Set exports.makeFunctions = true to allow deserializer to make functions.
  * If the deserializer can make functions, it is equivalent to eval() from a
@@ -94,17 +102,23 @@
  * strings containing the function's source code, having a name property that
  * matches the original function.
  */
-exports.makeFunctions = false
+KVIN.prototype.makeFunctions = false
 
 /* More bytes in a TypedArray than typedArrayPackThreshold will trigger
  * the code to prepare these into strings rather than arrays.
  */
-exports.typedArrayPackThreshold = 8
+KVIN.prototype.typedArrayPackThreshold = 8
 
 /* Arrays of primitives which are >= the threshold in length are scrutinized
  * for further optimization, e.g. by run-length encoding
  */
-exports.scanArrayThreshold = 8
+KVIN.prototype.scanArrayThreshold = 8
+
+KVIN.prototype.standardObject = {
+  Object,
+  Function,
+  Array,
+}
 
 /** Maxmimum number of arguments we can pass to a function in this engine.
  * @todo this needs to be detected at startup based on environment
@@ -149,7 +163,7 @@ if (typeof URL !== 'undefined'){
   ctors.push(URL)
 }
 
-exports.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
+KVIN.prototype.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
 
 /** Take a 'prepared object' (which can be represented by JSON) and turn it
  *  into an object which resembles the object it was created from.
@@ -161,7 +175,7 @@ exports.userCtors = {}; /**< name: implementation for user-defined constructors 
  *                              the graph. Used only for error messages.
  *  @returns    the value encoded by po
  */
-function unprepare (seen, po, position) {
+KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   switch (typeof po) {
     case 'boolean':
     case 'number':
@@ -172,7 +186,7 @@ function unprepare (seen, po, position) {
     switch (typeof po.ctr) {
     case 'string':
       if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
-        if (exports.constructorWhitelist && exports.constructorWhitelist.indexOf(po.ctr) === -1) {
+        if (this.constructorWhitelist && this.constructorWhitelist.indexOf(po.ctr) === -1) {
           throw new Error('Whitelist does not include constructor ' + po.ctr)
         }
         throw new Error('Invalid constructor name: ' + po.ctr)
@@ -204,7 +218,7 @@ function unprepare (seen, po, position) {
     return unprepare$number(po.number);
   }
   if (po.hasOwnProperty('fnName')) {
-    return unprepare$function(seen, po, position)
+    return this.unprepare$function(seen, po, position)
   }
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
     return unprepare$ArrayBuffer16(po, position)
@@ -213,10 +227,10 @@ function unprepare (seen, po, position) {
     return unprepare$ArrayBuffer8(po, position)
   }
   if (po.hasOwnProperty('arr')) {
-    return unprepare$Array(seen, po, position)
+    return this.unprepare$Array(seen, po, position)
   }
   if (po.hasOwnProperty('ctr')) {
-    return unprepare$object(seen, po, position)
+    return this.unprepare$object(seen, po, position)
   }
   if (po.hasOwnProperty('json')) {
     return JSON.parse(po.json)
@@ -227,7 +241,7 @@ function unprepare (seen, po, position) {
 
   if (Object.hasOwnProperty.call(po, 'resolve')) {
     // Unprepare a Promise by assuming po.resolve is a marshalled value.
-    const promise = Promise.resolve(exports.unmarshal(po.resolve));
+    const promise = Promise.resolve(this.unmarshal(po.resolve));
     seen.push(promise);
     return promise;
   }
@@ -241,13 +255,13 @@ function unprepare (seen, po, position) {
   throw new TypeError('Invalid preparation formula at ' + position)
 }
 
-function unprepare$object (seen, po, position) {
+KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position) {
   let o
   let constructor;
 
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
-    if (exports.userCtors.hasOwnProperty(po.ctr))
-      constructor = exports.userCtors[po.ctr];
+    if (this.userCtors.hasOwnProperty(po.ctr))
+      constructor = this.userCtors[po.ctr];
     else
       constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
@@ -265,7 +279,7 @@ function unprepare$object (seen, po, position) {
   if (po.hasOwnProperty('ps')) {
     for (let prop in po.ps) {
       if (po.ps.hasOwnProperty(prop)) {
-        o[prop] = unprepare(seen, po.ps[prop], position + '.' + prop)
+        o[prop] = this.unprepare(seen, po.ps[prop], position + '.' + prop)
       }
     }
   }
@@ -273,16 +287,16 @@ function unprepare$object (seen, po, position) {
   return o
 }
 
-function unprepare$function (seen, po, position) {
+KVIN.prototype.unprepare$function = function unprepare$function (seen, po, position) {
   let obj, fn
   let fnName = po.fnName
 
   /* A function is basically a callable object */
   po.ctr = ctors.indexOf(Object)
   delete po.fnName
-  obj = unprepare(seen, po, position)
+  obj = this.unprepare(seen, po, position)
 
-  if (!exports.makeFunctions) {
+  if (!this.makeFunctions) {
     obj.name = fnName
     return obj
   }
@@ -306,7 +320,7 @@ function unprepare$number(arg) {
  * lst:N - repeat last element N times
  * ps:[] - property list
  */
-function unprepare$Array (seen, po, position) {
+KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
   let a = []
   let last
 
@@ -316,11 +330,11 @@ function unprepare$Array (seen, po, position) {
     if (typeof po.arr[i] === 'object') {
       if (po.arr[i].lst) {
         for (let j = 0; j < po.arr[i].lst; j++) {
-          a.push(unprepare(seen, last, position + '.' + (i + j)))
+          a.push(this.unprepare(seen, last, position + '.' + (i + j)))
         }
         continue
       }
-      a.push(unprepare(seen, po.arr[i], position + '.' + i))
+      a.push(this.unprepare(seen, po.arr[i], position + '.' + i))
       last = po.arr[i]
     } else {
       a.push(po.arr[i])
@@ -331,7 +345,7 @@ function unprepare$Array (seen, po, position) {
   if (po.hasOwnProperty('isl')) {
     for (let prop in po.isl) {
       let island = po.isl[prop]
-      let els = Array.isArray(island.arr) ? island.arr : unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
+      let els = Array.isArray(island.arr) ? island.arr : this.unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
 
       if (els.length - 3 <= _vm_fun_maxargs) {
         if (els.length && (a.length < island['@'] + els.length)) {
@@ -349,7 +363,7 @@ function unprepare$Array (seen, po, position) {
   if (po.hasOwnProperty('ps')) {
     for (let prop in po.ps) {
       if (typeof po.ps[prop] === 'object') {
-        a[prop] = unprepare(seen, po.ps[prop], position + '.' + prop)
+        a[prop] = this.unprepare(seen, po.ps[prop], position + '.' + prop)
       } else {
         a[prop] = po.ps[prop]
       }
@@ -461,7 +475,7 @@ function unprepare$ArrayBuffer16 (po, position) {
  * iterate over their properties in order to serialize them; we
  * can let JSON.stringify() do any heavy lifting.
  */
-function isPrimitiveLike (o, seen) {
+KVIN.prototype.isPrimitiveLike = function isPrimitiveLike (o, seen) {
   if (o === null || typeof o === 'string' || typeof o === 'boolean')
     return true;
 
@@ -470,14 +484,14 @@ function isPrimitiveLike (o, seen) {
 
   if (typeof o !== 'object')
     return false;
-  
-  if (o.constructor === Object && Object.keys(o).length === 0)
+ 
+  if (o.constructor === this.standardObject.Object && Object.keys(o).length === 0)
     return true;
 
-  if (o.constructor === Array && o.length === 0 && Object.keys(o).length === 0)
+  if (o.constructor === this.standardObject.Array && o.length === 0 && Object.keys(o).length === 0)
     return true;
 
-  if (o.constructor !== Object && o.constructor !== Array)
+  if (o.constructor !== this.standardObject.Object && o.constructor !== this.standardObject.Array)
     return false;
 
   if (Array.isArray(o)) {
@@ -491,8 +505,8 @@ function isPrimitiveLike (o, seen) {
     if (!o.hasOwnProperty(prop))
       return false;
     if (seen.indexOf(o[prop]) !== -1)
-      return false;
-    if (!isPrimitiveLike(o[prop], seen))
+      return false; 
+    if (!this.isPrimitiveLike(o[prop], seen))
       return false;
   }
 
@@ -507,15 +521,15 @@ function isPrimitiveLike (o, seen) {
  *  @param      o       The object that the prepared object reflects
  *  @returns            A prepared object
  */
-function prepare (seen, o, where) {
+KVIN.prototype.prepare =  function prepare (seen, o, where) {
   let i, ret
   let po = {}
 
   if (typeof o === 'number') {
     return prepare$number(o)
   }
-  if (isPrimitiveLike(o, seen)) {
-    if (!Array.isArray(o) || o.length < exports.scanArrayThreshold)
+  if (this.isPrimitiveLike(o, seen)) {
+    if (!Array.isArray(o) || o.length < this.scanArrayThreshold)
       return prepare$primitive(o, where)
   }
   if (typeof o === 'undefined') {
@@ -528,10 +542,10 @@ function prepare (seen, o, where) {
     return { seen: i }
   }
   if (Array.isArray(o)) {
-    return prepare$Array(seen, o, where)
+    return this.prepare$Array(seen, o, where)
   }
   if (ArrayBuffer.isView(o)) {
-    return prepare$ArrayBuffer(o)
+    return this.prepare$ArrayBuffer(o)
   }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return prepare$boxedPrimitive(o)
@@ -582,7 +596,7 @@ function prepare (seen, o, where) {
   if (typeof o.toJSON === 'function') {
     ret.arg = o.toJSON()
   } else {
-    if (o.constructor !== Object)
+    if (o.constructor !== this.standardObject.Object)
       ret.arg = o.toString()
   }
 
@@ -605,14 +619,14 @@ function prepare (seen, o, where) {
       case 'object':
         if (o[prop] !== null) {
           if (typeof o[prop].constructor !== 'undefined'
-              && o[prop].constructor !== Object && o[prop].constructor.constructor !== Object
-              && o[prop].constructor !== Function && o[prop].constructor.constructor !== Function
-              && o[prop].constructor !== Function && o[prop].constructor.constructor.name !== "Function" /* vm context issue /wg aug 2020 */
-             ) {
+              && o[prop].constructor !== this.standardObject.Object && o[prop].constructor.constructor !== this.standardObject.Object
+              && o[prop].constructor !== this.standardObject.Function && o[prop].constructor.constructor !== this.standardObject.Function
+              && o[prop].constructor !== this.standardObject.Function && o[prop].constructor.constructor.name !== "Function" /* vm context issue /wg aug 2020 */
+            ) {
             throw new Error(`Cannot serialize property ${where}.${prop} - multiple inheritance is not supported.`);
           }
           if ((i = seen.indexOf(o[prop])) === -1) {
-            po[prop] = prepare(seen, o[prop], where + '.' + prop)
+            po[prop] = this.prepare(seen, o[prop], where + '.' + prop)
           } else {
             po[prop] = { seen: i }
           }
@@ -644,7 +658,7 @@ function prepare (seen, o, where) {
  *  @param   o      The array we are preparing
  *  @param   where  Human description of where we are in the object, for debugging purposes
  */
-function prepare$Array (seen, o, where) {
+ KVIN.prototype.prepare$Array = function prepare$Array (seen, o, where) {
   let pa = { arr: [] }
   let keys = Object.keys(o)
   let lastJson = NaN
@@ -655,10 +669,10 @@ function prepare$Array (seen, o, where) {
     if (!o.hasOwnProperty(i)) {
       break /* sparse array */
     }
-    if (typeof o[i] !== 'object' && isPrimitiveLike(o[i], seen)) {
+    if (typeof o[i] !== 'object' && this.isPrimitiveLike(o[i], seen)) {
       pa.arr.push(o[i])
     } else {
-      pa.arr.push(prepare(seen, o[i], where + '.' + i))
+      pa.arr.push(this.prepare(seen, o[i], where + '.' + i))
     }
 
     json = JSON.stringify(pa.arr[pa.arr.length - 1])
@@ -693,8 +707,8 @@ function prepare$Array (seen, o, where) {
           island.arr.push(o[k])
         }
         j += island.arr.length - 1
-        if (island.arr.length >= exports.scanArrayThreshold) {
-          let tmp = prepare(seen, island.arr, where + '.' + 'isl@' + (j - island.arr.length))
+        if (island.arr.length >= this.scanArrayThreshold) {
+          let tmp = this.prepare(seen, island.arr, where + '.' + 'isl@' + (j - island.arr.length))
           if (tmp.hasOwnProperty('arr')) {
             island.arr = tmp
           } else {
@@ -707,10 +721,10 @@ function prepare$Array (seen, o, where) {
       if (!pa.hasOwnProperty('ps')) {
         pa.ps = {}
       }
-      if (typeof o[key] !== 'object' && isPrimitiveLike(o[key], seen)) {
+      if (typeof o[key] !== 'object' && this.isPrimitiveLike(o[key], seen)) {
         pa.ps[key] = o[key]
       } else {
-        pa.ps[key] = prepare(seen, o[key], where + '.' + key)
+        pa.ps[key] = this.prepare(seen, o[key], where + '.' + key)
       }
     }
   }
@@ -829,27 +843,27 @@ function prepare$ArrayBuffer8 (o) {
 }
 
 /** Encode an ArrayBuffer (TypedArray) into a string, trying multiple methods to determine
- *  optimimum size/performance.  The exports.tune variable affects the behaviour of this code this:
+ *  optimimum size/performance.  The this.tune variable affects the behaviour of this code this:
  *
  *  "speed" - only do naive encoding: floats get represented as byte-per-digit strings
  *  "size" - try the naive, ab8, and ab16 encodings; pick the smallest
  *  neither - try the naive encoding if under typedArrayPackThreshold and use if smaller than
  *            ab8; otherwise, use ab8
  */
-function prepare$ArrayBuffer (o) {
+KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   let naive, naiveJSONLen;
   let ab8, ab8JSONLen;
   let ab16, ab16JSONLen;
 
-  if (exports.tune === "speed" || exports.tune === "size" || (o.byteLength < exports.typedArrayPackThreshold)) {
+  if (this.tune === "speed" || this.tune === "size" || (o.byteLength < this.typedArrayPackThreshold)) {
     naive = { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
-    if (exports.tune === "speed") {
+    if (this.tune === "speed") {
       return naive
     }
   }
 
   ab8 = prepare$ArrayBuffer8(o)
-  if (exports.tune !== "size") {
+  if (this.tune !== "size") {
     if (naive && naive.length < ab8.length) {
       return naive
     }
@@ -908,8 +922,8 @@ function prepare$undefined (o) {
  *  @param      what any (supported) js value
  *  @returns    an object which can be serialized with json
  */
-exports.marshal = function serialize$$marshal (what) {
-  return {_serializeVerId: exports.serializeVerId, what: prepare([], what, 'top')}
+KVIN.prototype.marshal = function serialize$$marshal (what) {
+  return {_serializeVerId: this.serializeVerId, what: this.prepare([], what, 'top')}
 }
 
 /**
@@ -921,7 +935,7 @@ exports.marshal = function serialize$$marshal (what) {
  * @returns {Promise<object>} An object which can be serialized with
  * `JSON.stringify`
  */
-exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing = false) {
+KVIN.prototype.marshalAsync = async function serialize$$marshalAsync(value, isRecursing = false) {
   /**
    * First, have marshal memoize returned an object graph with any instances of
    * Promise found during the marshal operation with { resolve: X }, where X is
@@ -932,7 +946,7 @@ exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing
    */
   let marshalledObject;
   if (!isRecursing) {
-    marshalledObject = exports.marshal(value);
+    marshalledObject = this.marshal(value);
   } else {
     marshalledObject = value;
   }
@@ -957,7 +971,7 @@ exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing
           typeof marshalledObject[key].resolve !== 'undefined' &&
           marshalledObject[key].resolve instanceof Promise
         ) {
-          marshalledObject[key].resolve = await exports.marshalAsync(
+          marshalledObject[key].resolve = await this.marshalAsync(
             await marshalledObject[key].resolve,
           );
         }
@@ -969,7 +983,7 @@ exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing
          * are working on a directed acyclic graph (DAG); prepares's "seen"
          * array argument expresses cycles separately.
          */
-        marshalledObject[key] = await exports.marshalAsync(
+        marshalledObject[key] = await this.marshalAsync(
           marshalledObject[key],
           true,
         );
@@ -983,10 +997,10 @@ exports.marshalAsync = async function serialize$$marshalAsync(value, isRecursing
 }
 
 /** Turn a marshaled (prepared) value back into its original form
- *  @param      obj     a prepared object - the output of exports.marshal()
- *  @returns    object  an object resembling the object originally passed to exports.marshal()
+ *  @param      obj     a prepared object - the output of this.marshal()
+ *  @returns    object  an object resembling the object originally passed to this.marshal()
  */
-exports.unmarshal = function serialize$$unmarshal (obj) {
+KVIN.prototype.unmarshal = function serialize$$unmarshal (obj) {
   if (!obj.hasOwnProperty('_serializeVerId')) {
     try {
       let str = JSON.stringify(obj)
@@ -1004,15 +1018,15 @@ exports.unmarshal = function serialize$$unmarshal (obj) {
     default:
       throw new Error(`Cannot unmarshal ${obj._serializeVerId} objects - please update Kvin`)
   }
-  return unprepare([], obj.what, 'top')
+  return this.unprepare([], obj.what, 'top')
 }
 
 /** Serialize a value.
  *  @param      what    The value to serialize
  *  @returns    The JSON serialization of the prepared object representing what.
  */
-exports.serialize = function serialize (what) {
-  return JSON.stringify(exports.marshal(what))
+KVIN.prototype.serialize = function serialize (what) {
+  return JSON.stringify(this.marshal(what))
 }
 
 /**
@@ -1021,22 +1035,33 @@ exports.serialize = function serialize (what) {
  * @param   {*} value The value to serialize
  * @returns {Promise<string>} A JSON serialization representing the value
  */
-exports.serializeAsync = async function serializeAsync(value) {
-  return JSON.stringify(await exports.marshalAsync(value))
+KVIN.prototype.serializeAsync = async function serializeAsync(value) {
+  return JSON.stringify(await this.marshalAsync(value))
 }
 
 /** Deserialize a value.
  *  @param      str     The JSON serialization of the prepared object representing the value.
  *  @returns    The deserialized value
  */
-exports.deserialize = function deserialize (str) {
-  return exports.unmarshal(JSON.parse(str))
+KVIN.prototype.deserialize = function deserialize (str) {
+  return this.unmarshal(JSON.parse(str))
 }
 
-exports.serializeVerId = 'v7'
+KVIN.prototype.serializeVerId = 'v7'
+  
+/* JSON-like interface */
+KVIN.prototype.parse = KVIN.prototype.deserialize;  
+KVIN.prototype.stringify = KVIN.prototype.serialize;
+KVIN.prototype.stringifyAsync = KVIN.prototype.serializeAsync;
 
-/* JSON-like exports */
-exports.parse = exports.deserialize;
-exports.stringify = exports.serialize;
-exports.stringifyAsync = exports.serializeAsync;
+for (let prop in KVIN.prototype)
+{
+  if (typeof KVIN.prototype[prop] === 'function')
+    exports[prop] = KVIN.prototype[prop].bind(exports);
+  else {
+    exports[prop] = KVIN.prototype[prop]
+  }
+}
+
+exports.KVIN = KVIN;
 /* end of module */ })}
