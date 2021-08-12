@@ -89,10 +89,44 @@
 /* eslint-disable indent */ module.declare([], function (require, exports, module) {
 
 /** @constructor */
-function KVIN(standardObject)
+function KVIN(ctors, JSON)
 {
-  if (standardObject) {
-    this.standardObject = standardObject;
+  for (let ctor of this.ctors) {
+    this[ctor.name] = ctor
+  }
+  debugger;
+
+  if (JSON)
+    this.JSON = JSON;
+
+  if (!ctors)
+    return;
+
+  this.ctors = [].concat(this.ctors);
+
+  if (Array.isArray(ctors))
+  {
+    for (let ctor of ctors)
+    {
+      this[ctor.name] = ctor
+      for (let i=0; i < this.ctors.length; i++)
+      {
+        if (this.ctors[i].name === ctor.name)
+          this.ctors[i] = ctor;
+      }
+    }
+  }
+  else
+  {
+    for (let entry of Object.entries(ctors))
+    {
+      for (let i=0; i < this.ctors.length; i++)
+      {
+        let [ name, ctor ] = entry; 
+        if (this.ctors[i].name === name)
+          this.ctors[i] = ctor;
+      }
+    }
   }
 }
 /*
@@ -141,7 +175,7 @@ const littleEndian = (function () {
 })()
 
 /** Pre-defined constructors, used to compact payload */
-const ctors = [
+KVIN.prototype.ctors = [
   Object,
   Int8Array,
   Uint8Array,
@@ -160,7 +194,7 @@ const ctors = [
   Function,
 ];
 if (typeof URL !== 'undefined'){
-  ctors.push(URL)
+  KVIN.prototype.ctors.push(URL)
 }
 
 KVIN.prototype.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
@@ -193,7 +227,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
       }
       break
     case 'number':
-      if (!(po.ctr >= 0 && po.ctr < ctors.length)) {
+      if (!(po.ctr >= 0 && po.ctr < this.ctors.length)) {
         throw new Error('Invalid constructor number: ' + po.ctr)
       }
       break
@@ -221,10 +255,10 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
     return this.unprepare$function(seen, po, position)
   }
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
-    return unprepare$ArrayBuffer16(po, position)
+    return this.unprepare$ArrayBuffer16(po, position)
   }
   if (po.hasOwnProperty('ab8') || po.hasOwnProperty('isl8')) {
-    return unprepare$ArrayBuffer8(po, position)
+    return this.unprepare$ArrayBuffer8(po, position)
   }
   if (po.hasOwnProperty('arr')) {
     return this.unprepare$Array(seen, po, position)
@@ -265,7 +299,7 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
     else
       constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
-    constructor = ctors[po.ctr]
+    constructor = this.ctors[po.ctr]
   }
 
   if (po.hasOwnProperty('arg')) {
@@ -292,7 +326,7 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
   let fnName = po.fnName
 
   /* A function is basically a callable object */
-  po.ctr = ctors.indexOf(Object)
+  po.ctr = this.ctors.indexOf(Object)
   delete po.fnName
   obj = this.unprepare(seen, po, position)
 
@@ -383,7 +417,7 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
  *  The isl8 (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
  */
-function unprepare$ArrayBuffer8 (po, position) {
+KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (po, position) {
   let i8
   let bytes
   let constructor;
@@ -391,7 +425,7 @@ function unprepare$ArrayBuffer8 (po, position) {
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
     constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
-    constructor = ctors[po.ctr]
+    constructor = this.ctors[po.ctr]
   }
 
   if (po.hasOwnProperty('ab8')) {
@@ -421,7 +455,7 @@ function unprepare$ArrayBuffer8 (po, position) {
  *  The isl16 (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
  */
-function unprepare$ArrayBuffer16 (po, position) {
+ KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (po, position) {
   let i16, i8, words
   let bytes
   let constructor;
@@ -429,7 +463,7 @@ function unprepare$ArrayBuffer16 (po, position) {
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
     constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
-    constructor = ctors[po.ctr]
+    constructor = this.ctors[po.ctr]
   }
 
   if (po.hasOwnProperty('ab16')) {
@@ -548,10 +582,10 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     return this.prepare$ArrayBuffer(o)
   }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
-    return prepare$boxedPrimitive(o)
+    return this.prepare$boxedPrimitive(o)
   }
   if (o.constructor === RegExp) {
-    return prepare$RegExp(o)
+    return this.prepare$RegExp(o)
   }
 
   if (o instanceof Promise) {
@@ -567,7 +601,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     return prepare$undefined(o)
   }
 
-  ret = { ctr: ctors.indexOf(o.constructor), ps: po }
+  ret = { ctr: this.ctors.indexOf(o.constructor), ps: po }
   if (ret.ctr === -1) {
     /**
      * If the constructor is `Object` from another context, the indexOf check
@@ -575,7 +609,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
      * constructors, use the index from the mapped array to get the proper
      * constructor index.
      */
-    const constructorNames = ctors.map((ctor) => ctor.name);
+    const constructorNames = this.ctors.map((ctor) => ctor.name);
     const ctrIndex = constructorNames.indexOf(o.constructor.name);
     if (ctrIndex !== -1) {
       ret.ctr = ctrIndex;
@@ -583,9 +617,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
        * Fix the `o`'s constructor to match its constructor in the current
        * context so that later equality/instanceof checks don't fail.
        */
-      o.constructor = ctors[ctrIndex];
+      o.constructor = this.ctors[ctrIndex];
     } else {
-      ret.ctr = o.constructor.name || ctors.indexOf(Object)
+      ret.ctr = o.constructor.name || this.ctors.indexOf(Object)
     }
   }
 
@@ -752,8 +786,8 @@ function notUnicode(s) {
  *
  *  @see unprepare$ArrayBuffer16
  */
-function prepare$ArrayBuffer16 (o) {
-  let ret = { ctr: ctors.indexOf(o.constructor) }
+KVIN.prototype.prepare$ArrayBuffer16 = function prepare$ArrayBuffer16 (o) {
+  let ret = { ctr: this.ctors.indexOf(o.constructor) }
   let nWords = Math.floor(o.byteLength / 2)
   let s = ''
 
@@ -807,8 +841,8 @@ function prepare$ArrayBuffer16 (o) {
 /** Encode an ArrayBuffer (TypedArray) into a string composed solely of Latin-1 characters.
  *  Strings with many zeroes will be represented as sparse-string objects.
  */
-function prepare$ArrayBuffer8 (o) {
-  let ret = { ctr: ctors.indexOf(o.constructor) }
+KVIN.prototype.prepare$ArrayBuffer8 = function prepare$ArrayBuffer8 (o) {
+  let ret = { ctr: this.ctors.indexOf(o.constructor) }
 
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
@@ -856,13 +890,13 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   let ab16, ab16JSONLen;
 
   if (this.tune === "speed" || this.tune === "size" || (o.byteLength < this.typedArrayPackThreshold)) {
-    naive = { ctr: ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
+    naive = { ctr: this.ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
     if (this.tune === "speed") {
       return naive
     }
   }
 
-  ab8 = prepare$ArrayBuffer8(o)
+  ab8 = this.prepare$ArrayBuffer8(o)
   if (this.tune !== "size") {
     if (naive && naive.length < ab8.length) {
       return naive
@@ -870,7 +904,7 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
     return ab8
   }
 
-  ab16 = prepare$ArrayBuffer16(o)
+  ab16 = this.prepare$ArrayBuffer16(o)
   naiveJSONLen = naive ? naive.length + 2 : Infinity
   ab8JSONLen = JSON.stringify(ab8).length;
   ab16JSONLen = ab16 ? JSON.stringify(ab16).length : Infinity
@@ -885,12 +919,12 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   return ab8;
 }
 
-function prepare$RegExp (o) {
-  return { ctr: ctors.indexOf(o.constructor), arg: o.toString().slice(1, -1) }
+KVIN.prototype.prepare$RegExp = function prepare$RegExp (o) {
+  return { ctr: this.ctors.indexOf(o.constructor), arg: o.toString().slice(1, -1) }
 }
 
-function prepare$boxedPrimitive (o) {
-  return { ctr: ctors.indexOf(o.constructor), arg: o.toString() }
+KVIN.prototype.prepare$boxedPrimitive = function prepare$boxedPrimitive (o) {
+  return { ctr: this.ctors.indexOf(o.constructor), arg: o.toString() }
 }
 
 function prepare$number (n) {
