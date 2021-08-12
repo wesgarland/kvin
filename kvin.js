@@ -94,7 +94,6 @@ function KVIN(ctors, JSON)
   for (let ctor of this.ctors) {
     this[ctor.name] = ctor
   }
-  debugger;
 
   if (JSON)
     this.JSON = JSON;
