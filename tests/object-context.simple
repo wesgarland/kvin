@@ -1,0 +1,22 @@
+#! /usr/bin/env node
+const kvin = require('../kvin');
+
+
+function myObject(inputValue) {
+  this.value = inputValue
+}
+
+myObject.prototype.showValue = function showValue() {
+  return this.value;
+}
+
+const myKvin = new kvin.KVIN({Object: myObject});
+
+let a = new myObject(5);
+let Ma = myKvin.marshal(a)
+let Ua = myKvin.unmarshal(Ma);
+
+if (a.constructor != Ua.constructor) {
+  throw new Error(`Constructor changed in new context after serialization/unserialization, ${a.constructor} vs ${Ua.constructor}`)
+}
+

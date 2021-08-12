@@ -91,8 +91,10 @@
 /** @constructor */
 function KVIN(ctors, JSON)
 {
+  // We always need to initialize the standardObject. It is used for comparisons for primitive types etc
+  this.standardObject = {};
   for (let ctor of this.ctors) {
-    this[ctor.name] = ctor
+    this.standardObject[ctor.name] = ctor;
   }
 
   if (JSON)
@@ -124,6 +126,7 @@ function KVIN(ctors, JSON)
         let [ name, ctor ] = entry; 
         if (this.ctors[i].name === name)
           this.ctors[i] = ctor;
+          this.standardObject[name] = ctor;
       }
     }
   }
@@ -147,11 +150,6 @@ KVIN.prototype.typedArrayPackThreshold = 8
  */
 KVIN.prototype.scanArrayThreshold = 8
 
-KVIN.prototype.standardObject = {
-  Object,
-  Function,
-  Array,
-}
 
 /** Maxmimum number of arguments we can pass to a function in this engine.
  * @todo this needs to be detected at startup based on environment
@@ -1087,12 +1085,14 @@ KVIN.prototype.parse = KVIN.prototype.deserialize;
 KVIN.prototype.stringify = KVIN.prototype.serialize;
 KVIN.prototype.stringifyAsync = KVIN.prototype.serializeAsync;
 
-for (let prop in KVIN.prototype)
+exports.base_kvin = new KVIN();
+
+for (let prop in exports.base_kvin)
 {
-  if (typeof KVIN.prototype[prop] === 'function')
-    exports[prop] = KVIN.prototype[prop].bind(exports);
+  if (typeof exports.base_kvin[prop] === 'function')
+    exports[prop] = exports.base_kvin[prop].bind(exports);
   else {
-    exports[prop] = KVIN.prototype[prop]
+    exports[prop] = exports.base_kvin[prop]
   }
 }
 
