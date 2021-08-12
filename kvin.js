@@ -239,6 +239,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
         po.used = true;
       else
         return JSON.parse(JSON.stringify(po.raw));
+      return Object.assign(new this.standardObject.Object(), po.raw);
     }
     return po.raw;
   }
