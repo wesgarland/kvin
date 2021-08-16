@@ -8,8 +8,8 @@ F[1] = 10;
 
 let arr = [F,F,F];
 
-serF = kvin.serialize(arr);
-newF = kvin.deserialize(serF);
+const serF = kvin.serialize(arr);
+const newF = kvin.deserialize(serF);
 
 /* ensure (de)serialization produces correct types and values */
 for (let j = 0; j < arr.length; j++) {
