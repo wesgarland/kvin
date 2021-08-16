@@ -253,10 +253,10 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
     return this.unprepare$function(seen, po, position)
   }
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
-    return this.unprepare$ArrayBuffer16(po, position)
+    return this.unprepare$ArrayBuffer16(seen, po, position)
   }
   if (po.hasOwnProperty('ab8') || po.hasOwnProperty('isl8')) {
-    return this.unprepare$ArrayBuffer8(po, position)
+    return this.unprepare$ArrayBuffer8(seen, po, position)
   }
   if (po.hasOwnProperty('arr')) {
     return this.unprepare$Array(seen, po, position)
@@ -415,7 +415,7 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
  *  The isl8 (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
  */
-KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (po, position) {
+KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, po, position) {
   let i8
   let bytes
   let constructor;
@@ -443,7 +443,9 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (po, pos
       }
     }
   }
-  return new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
+  let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line;
+  seen.push(o)
+  return o;
 }
 
 /** The ab16 (array buffer 16 bit) encoding encodes TypedArrays and related types by
@@ -453,7 +455,7 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (po, pos
  *  The isl16 (islands) encoding is almost the same, except that it encodes only
  *  sequences of mostly-non-zero sections of the string.
  */
- KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (po, position) {
+ KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (seen, po, position) {
   let i16, i8, words
   let bytes
   let constructor;
@@ -498,8 +500,9 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (po, pos
       i8[(i * 2) + 0] = i8[(i * 2) + 0] ^ i8[(i * 2) + 1]
     }
   }
-
-  return new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
+  let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
+  seen.push(o)
+  return o
 }
 
 /* Primitives and primitive-like objects do not have any special
