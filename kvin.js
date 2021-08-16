@@ -726,7 +726,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     for (let j = 0; j < keys.length; j++) {
       let key = keys[j]
       let idx = +key
-      if (idx < i && pa.arr.hasOwnProperty(idx)) { /* test order for speed */
+      if (idx < j && pa.arr.hasOwnProperty(idx)) { /* test order for speed */
         continue
       }
       if (typeof idx === 'number' && o.hasOwnProperty(idx + 1)) {
