@@ -1,0 +1,24 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+
+let F = new Uint8Array(10);
+F[0] = 1;
+F[1] = 10;
+
+let arr = [F,F,F];
+
+const serF = kvin.serialize(arr);
+const newF = kvin.deserialize(serF);
+
+/* ensure (de)serialization produces correct types and values */
+for (let j = 0; j < arr.length; j++) {
+  for (let i=0; i < F.length; i++) {
+    if (typeof newF[j][i] !== typeof F[i]) {
+      throw new Error(`typeof newF[${i}][${i}] = ${typeof newF[j][i]}, typeof F[${i}] = ${typeof F[i]}`);
+    }
+    if (newF[j][i] !== F[i]) {
+      throw new Error(`newF[${j}][${i}] = ${newF[j][i]}, F[${i}] = ${F[i]}`);
+    }
+  }
+}

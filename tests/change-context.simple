@@ -1,0 +1,26 @@
+#! /usr/bin/env node
+const kvin = require('../kvin');
+
+function myObject(inputValue) {
+  this.value = inputValue
+}
+
+myObject.prototype.showValue = function showValue() {
+  return this.value;
+}
+
+let a = {value : 1}
+let Ma = kvin.marshal(a);
+
+debugger;
+const myKvin = new kvin.KVIN({Object: myObject});
+let Ua = myKvin.unmarshal(Ma);
+
+try {
+  let value = Ua.showValue();
+  if (value !== 1) {
+    throw new Error(`Value changed when unmarshalled. Got ${value}, expected 1`)
+  }
+} catch {
+  throw new Error(`Failed to put object in new context properly when unmarshalling.`)
+}
