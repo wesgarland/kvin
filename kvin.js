@@ -233,7 +233,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
     }
   }
   if (po.hasOwnProperty('raw')) {
-    if (typeof po.raw === 'object' && po.raw !== null)
+    if (typeof po.raw === 'object' && po.raw !== null && !Array.isArray(po.raw))
     {
       if (!po.used)
         po.used = true;
