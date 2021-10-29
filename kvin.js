@@ -1036,6 +1036,9 @@ KVIN.prototype.marshalAsync = async function serialize$$marshalAsync(value, isRe
  *  @returns    object  an object resembling the object originally passed to this.marshal()
  */
 KVIN.prototype.unmarshal = function serialize$$unmarshal (obj) {
+  if (typeof obj !== 'object' || obj === null) {
+    throw new Error(`Cannot unmarshal type ${typeof obj} or null.`)
+  }
   if (!obj.hasOwnProperty('_serializeVerId')) {
     try {
       let str = JSON.stringify(obj)
@@ -1079,6 +1082,9 @@ KVIN.prototype.serializeAsync = async function serializeAsync(value) {
  *  @returns    The deserialized value
  */
 KVIN.prototype.deserialize = function deserialize (str) {
+  if (typeof str !== 'string') {
+    throw new Error(`Cannot deserialize type ${typeof str}`)
+  }
   return this.unmarshal(JSON.parse(str))
 }
 
