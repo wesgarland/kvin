@@ -780,9 +780,9 @@ function prepare$ArrayBuffer16 (o) {
 
   if (ret.ab16 && notUnicode(ret.ab16)) {
     return null
-  } else {
-    for (let i = 0; i < isl16.length; i++) {
-      if (notUnicode(isl16[i])) {
+  } else  if (ret.isl16) {
+    for (let i = 0; i < ret.isl16.length; i++) {
+      if (notUnicode(ret.isl16[i])) {
         return null
       }
     }
