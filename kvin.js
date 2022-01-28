@@ -88,22 +88,23 @@
   
 /* eslint-disable indent */ module.declare([], function (require, exports, module) {
 
-/** @constructor */
-function KVIN(ctors, JSON)
+/** 
+ * @constructor to create an alternate KVIN context. This allows us to recogonize instance of
+ *              the standard classes from a different JS context or have different tuning parameters.   
+ * @param ctors list or object of standard constructors
+ */
+function KVIN(ctors)
 {
-  // We always need to initialize the standardObject. It is used for comparisons for primitive types etc
-  this.standardObject = {};
-  for (let ctor of this.ctors) {
-    this.standardObject[ctor.name] = ctor;
+  // We always need to initialize the standardObjects. It is used for comparisons for primitive types etc
+  this.standardObjects = {};
+  for (let ctor of KVIN.prototype.ctors) {
+    this.standardObjects[ctor.name] = ctor;
   }
 
-  if (JSON)
-    this.JSON = JSON;
-
+  this.ctors = [].concat(KVIN.prototype.ctors);
+  
   if (!ctors)
     return;
-
-  this.ctors = [].concat(this.ctors);
 
   if (Array.isArray(ctors))
   {
@@ -126,7 +127,7 @@ function KVIN(ctors, JSON)
         let [ name, ctor ] = entry; 
         if (this.ctors[i].name === name)
           this.ctors[i] = ctor;
-          this.standardObject[name] = ctor;
+          this.standardObjects[name] = ctor;
       }
     }
   }
@@ -164,7 +165,7 @@ const littleEndian = (function () {
   ui8 = new Uint8Array(ui16.buffer, ui16.byteOffset, ui16.byteLength)
 
   if (ui8[0] === 0x0ff) {
-    console.log('Detected big-endian platform')
+    console.error('KVIN: Detected big-endian platform')
     return false
   }
 
@@ -189,6 +190,8 @@ KVIN.prototype.ctors = [
   Boolean,
   Array,
   Function,
+  Error,
+  Promise,
 ];
 if (typeof URL !== 'undefined'){
   KVIN.prototype.ctors.push(URL)
@@ -239,7 +242,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
         po.used = true;
       else
         return JSON.parse(JSON.stringify(po.raw));
-      return Object.assign(new this.standardObject.Object(), po.raw);
+      return Object.assign(new this.standardObjects.Object(), po.raw);
     }
     return po.raw;
   }
@@ -294,7 +297,7 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
     if (this.userCtors.hasOwnProperty(po.ctr))
       constructor = this.userCtors[po.ctr];
-    else
+    else 
       constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
     constructor = this.ctors[po.ctr]
@@ -306,6 +309,13 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
     o = new constructor() // eslint-disable-line
   }
 
+  if (po.ctr === 'Error')
+  {
+    delete o.stack;
+    delete o.lineNumber;
+    delete o.fileName;
+  }
+  
   seen.push(o)
 
   if (po.hasOwnProperty('ps')) {
@@ -520,13 +530,13 @@ KVIN.prototype.isPrimitiveLike = function isPrimitiveLike (o, seen) {
   if (typeof o !== 'object')
     return false;
  
-  if (o.constructor === this.standardObject.Object && Object.keys(o).length === 0)
+  if (o.constructor === this.standardObjects.Object && Object.keys(o).length === 0)
     return true;
 
-  if (o.constructor === this.standardObject.Array && o.length === 0 && Object.keys(o).length === 0)
+  if (o.constructor === this.standardObjects.Array && o.length === 0 && Object.keys(o).length === 0)
     return true;
 
-  if (o.constructor !== this.standardObject.Object && o.constructor !== this.standardObject.Array)
+  if (o.constructor !== this.standardObjects.Object && o.constructor !== this.standardObjects.Array)
     return false;
 
   if (Array.isArray(o)) {
@@ -548,6 +558,27 @@ KVIN.prototype.isPrimitiveLike = function isPrimitiveLike (o, seen) {
   return true
 }
 
+/**
+ * Serialize an instance of Error, preserving standard-ish non-enumerable properties 
+ */     
+function prepare$Error(o)
+{
+  let ret = {
+    ctr: 'Error',
+    ps: {},
+    arg: o.message
+  };
+
+  for (let prop of ['code', 'stack', 'lineNumber', 'fileName'])
+    if (o.hasOwnProperty(prop))
+      ret.ps[prop] = o[prop];
+  for (let prop in o)
+    if (o.hasOwnProperty(prop))
+      ret.ps[prop] = o[prop];
+
+  return ret;
+}
+  
 /** Take an arbitrary object and turn it into a 'prepared object'.
  *  A prepared object can always be represented with JSON.
  *
@@ -589,7 +620,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     return this.prepare$RegExp(o)
   }
 
-  if (o instanceof Promise) {
+  if (o instanceof Promise || o instanceof this.standardObjects.Promise) {
     /**
      * Let the caller replace the `resolve` property with its marshalled
      * resolved value.
@@ -597,8 +628,13 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     return { resolve: o };
   }
 
+  if (o instanceof Error || o instanceof this.standardObjects.Error) {
+    /* special-case Error to get non-enumerable properties */
+    return prepare$Error(o);
+  }
+
   if (typeof o.constructor === 'undefined') {
-    console.log('Warning: ' + where + ' is missing .constructor -- skipping')
+    console.warn('KVIN Warning: ' + where + ' is missing .constructor -- skipping')
     return prepare$undefined(o)
   }
 
@@ -631,12 +667,12 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (typeof o.toJSON === 'function') {
     ret.arg = o.toJSON()
   } else {
-    if (o.constructor !== this.standardObject.Object)
+    if (o.constructor !== this.standardObjects.Object)
       ret.arg = o.toString()
   }
 
   if (typeof o.hasOwnProperty === 'undefined') {
-    console.log('Warning: ' + where + ' is missing .hasOwnProperty -- skipping')
+    console.warn('KVIN Warning: ' + where + ' is missing .hasOwnProperty -- skipping')
     return prepare$undefined(o)
   }
 
@@ -654,9 +690,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
       case 'object':
         if (o[prop] !== null) {
           if (typeof o[prop].constructor !== 'undefined'
-              && o[prop].constructor !== this.standardObject.Object && o[prop].constructor.constructor !== this.standardObject.Object
-              && o[prop].constructor !== this.standardObject.Function && o[prop].constructor.constructor !== this.standardObject.Function
-              && o[prop].constructor !== this.standardObject.Function && o[prop].constructor.constructor.name !== "Function" /* vm context issue /wg aug 2020 */
+              && o[prop].constructor !== this.standardObjects.Object && o[prop].constructor.constructor !== this.standardObjects.Object
+              && o[prop].constructor !== this.standardObjects.Function && o[prop].constructor.constructor !== this.standardObjects.Function
+              && o[prop].constructor !== this.standardObjects.Function && o[prop].constructor.constructor.name !== "Function" /* vm context issue /wg aug 2020 */
             ) {
             throw new Error(`Cannot serialize property ${where}.${prop} - multiple inheritance is not supported.`);
           }
