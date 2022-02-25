@@ -933,6 +933,8 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
     }
   }
 
+  naiveJSONLen = naive ? JSON.stringify(naive).length : Infinity
+
   ab8 = this.prepare$ArrayBuffer8(o)
   if (this.tune !== "size") {
     if (naive && naive.length < ab8.length) {
@@ -942,7 +944,6 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   }
 
   ab16 = this.prepare$ArrayBuffer16(o)
-  naiveJSONLen = naive ? naive.length + 2 : Infinity
   ab8JSONLen = JSON.stringify(ab8).length;
   ab16JSONLen = ab16 ? JSON.stringify(ab16).length : Infinity
 
