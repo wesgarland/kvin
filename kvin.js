@@ -14,7 +14,7 @@
  *                                        - objects will re-constructed with no constructor arguments
  *                                          during deserialization
  *                                        - enumerable properties will be copied on after construction
- *                                      - optional whitelisting of supported constructors
+ *                                      - opt-in list of supported constructors (kvin.constructorAllowList)
  *
  *                                      This library is safe to use on user-supplied data.
  *
@@ -220,8 +220,8 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
     switch (typeof po.ctr) {
     case 'string':
       if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
-        if (this.constructorWhitelist && this.constructorWhitelist.indexOf(po.ctr) === -1) {
-          throw new Error('Whitelist does not include constructor ' + po.ctr)
+        if (this.constructorAllowlist && this.constructorAllowlist.indexOf(po.ctr) === -1) {
+          throw new Error('Allowlist does not include constructor ' + po.ctr)
         }
         throw new Error('Invalid constructor name: ' + po.ctr)
       }

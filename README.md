@@ -143,12 +143,17 @@ kvin.serialize({foo: "bar"});
 | unmarshal	 | object	| like deserialize, but operates on marshaled objects instead of strings
 | kvin           | object       | constructor to create a custom KVIN instance, with its own tuning parameters and Standard Classes.
 
+### KVIN Instance Properties
+| Property   	          | Default | Description
+|-------------------------|---------|---------------------------------------------------------
+| allowConstructorList    |         | Array which is a list of non-standard constructors that KVIN will try to deserialize
+| userCtors               | {}      | Dictionary; keys are constructor names, values are constructor functions for user-defined classes
+| makeFunctions           | false   | When true allows Kvin to deserialize Functions
+
 #### Tuning Values
 | Property   	          | Default | Description
 |-------------------------|---------|---------------------------------------------------------
 | tune                    |         | Set to "speed" for fast operation, or "size" for small operation. Default value, undefined, balances both.
-| makeFunctions           | false   | When true allows Kvin to deserialize Functions
 | typedArrayPackThreshold | 8	    | When to start trying to use islands-of-zeros encoding; bigger numbers mean faster encoding/decoding but longer strings.
 | scanArrayThreshold      | 8       | When to start trying to use sparse-array representation for Arrays; bigger numbers mean faster encoding/decoding but longer strings.
-| userCtors               | {}      | Dictionary; keys are constructor names, values are constructor functions for user-defined classes
 
