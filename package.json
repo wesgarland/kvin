@@ -1,6 +1,6 @@
 {
   "name": "kvin",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Rich serialization library for JavaScript",
   "keywords": [
     "json",
@@ -21,9 +21,11 @@
     "LICENSE",
     "kvin.js",
     "tests",
+    "failing-tests",
     "browser-tests"
   ],
   "scripts": {
+    "postpublish": "PACKAGE_VERSION=$(cat package.json | grep \\\"version\\\" | head -1 | awk -F: '{ print $2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]') && git tag {v$PACKAGE_VERSION && git push --tags",
     "test": "peter tests",
     "vtest": "peter -v tests"
   },
