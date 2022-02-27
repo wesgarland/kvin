@@ -27,12 +27,13 @@ data types, including:
 * Functions (including enumerable properties)
 * Promises which always resolve to any of the above
 
-This library is safe to use on user-supplied data.
+This library is safe to use on user-supplied data and has no dependencies.
 
 ## Supported Platforms
  - Browser (no framework needed)
  - Node.js
  - BravoJS
+ - Probably every >= ES5 environment
 
 ## Examples
 
