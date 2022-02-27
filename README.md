@@ -1,7 +1,14 @@
-# `Kvin` - A rich serialization library for JavaScript.
+# `KVIN` - A rich serialization library for JavaScript.
+
+## TLDR;
+```javascript
+const KVIN = require('kvin');
+let s = KVIN.stringify(complexType);
+let x = KVIN.parse(s);
+```
 
 ## Overview
-*Kvin* - pronounced "Kevin" - serializes (and deserializes) JavaScript types for transmission over a
+*KVIN* - pronounced "Kevin" - serializes (and deserializes) JavaScript types for transmission over a
 network or storage to disk in a way that co-exists peacefully with JSON, but it supports many more
 data types, including:
 
@@ -12,6 +19,8 @@ data types, including:
 * Sparse Arrays
 * Date
 * URL
+* Error
+* BigInt
 * Regular Expressions
 * Instances of user-defined classes
 * Boxed primitives (excluding Symbol)
@@ -29,38 +38,38 @@ This library is safe to use on user-supplied data.
 
 ### Simple
 ```javascript
-const kvin = require('kvin');
+const KVIN = require('kvin');
 const obj = {};
 
 obj.foo = "hello, world";
 
-var obj_string = kvin.serialize(obj);
-var obj2 = kvin.deserialize(obj_string);
+var obj_string = KVIN.serialize(obj);
+var obj2 = KVIN.deserialize(obj_string);
 
 console.log(obj2.foo);
 ```
 
 ### Object With Cycle
 ```javascript
-const kvin = require('kvin');
+const KVIN = require('kvin');
 const obj = {};
 
 obj.foo = "hello, world";
 obj.bar = obj; /* make a circular reference */
 
-var obj_string = kvin.serialize(obj);
-var obj2 = kvin.deserialize(obj_string);
+var obj_string = KVIN.serialize(obj);
+var obj2 = KVIN.deserialize(obj_string);
 
 console.log(obj2.bar.bar.bar.bar.foo);
 ```
 
 ### Float64Array (Typed Array)
 ```javascript
-const kvin = require('kvin');
+const KVIN = require('kvin');
 const obj = new Float64Array([1.0, 2.0, Math.PI, NaN, Infinity, -Infinity]);
 
-var obj_string = kvin.serialize(obj);
-var obj2 = kvin.deserialize(obj_string);
+var obj_string = KVIN.serialize(obj);
+var obj2 = KVIN.deserialize(obj_string);
 
 console.log(obj2);
 ```
@@ -87,7 +96,7 @@ serializer, in certain modes, will do a sort of "run length limited" encoding on
 in an astrophysics application).  
 
 ### Interoperation with JSON
-Kvin and JSON go together like peas and carrots. If you are creating a payload object which will be stringified by JSON in the
+KVIN and JSON go together like peas and carrots. If you are creating a payload object which will be stringified by JSON in the
 future, do NOT use `kvin.serialize()`; instead, use `kvin.marshal()`. This will get you all the benefits of Kvin without the
 cost of double-stringification. Similarly, at the receiving end, use `kvin.unmarshal()` to reconstruct your data.
 
@@ -131,10 +140,12 @@ kvin.serialize({foo: "bar"});
 | marshal	 | any		| like serialize, but returns a JSON-compatible object 
 | marshalAsync   | any		| like serializeAsync, but returns a JSON-compatible object
 | unmarshal	 | object	| like deserialize, but operates on marshaled objects instead of strings
+| kvin           | object       | constructor to create a custom KVIN instance, with its own tuning parameters and Standard Classes.
 
 #### Tuning Values
 | Property   	          | Default | Description
 |-------------------------|---------|---------------------------------------------------------
+| tune                    |         | Set to "speed" for fast operation, or "size" for small operation. Default value, undefined, balances both.
 | makeFunctions           | false   | When true allows Kvin to deserialize Functions
 | typedArrayPackThreshold | 8	    | When to start trying to use islands-of-zeros encoding; bigger numbers mean faster encoding/decoding but longer strings.
 | scanArrayThreshold      | 8       | When to start trying to use sparse-array representation for Arrays; bigger numbers mean faster encoding/decoding but longer strings.

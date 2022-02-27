@@ -252,6 +252,9 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('number')) {
     return unprepare$number(po.number);
   }
+  if (po.hasOwnProperty('bigint')) {
+    return unprepare$bigint(po.bigint);
+  }
   if (po.hasOwnProperty('fnName')) {
     return this.unprepare$function(seen, po, position)
   }
@@ -351,6 +354,10 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
   }
 
   return fn
+}
+
+function unprepare$bigint(arg) {
+  return BigInt(arg);
 }
 
 function unprepare$number(arg) {
@@ -593,6 +600,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
 
   if (typeof o === 'number') {
     return prepare$number(o)
+  }
+  if (typeof o === 'bigint') {
+    return prepare$bigint(o)
   }
   if (this.isPrimitiveLike(o, seen)) {
     if (!Array.isArray(o) || o.length < this.scanArrayThreshold)
@@ -965,6 +975,10 @@ KVIN.prototype.prepare$boxedPrimitive = function prepare$boxedPrimitive (o) {
   return { ctr: this.ctors.indexOf(o.constructor), arg: o.toString() }
 }
 
+function prepare$bigint (n) {
+  return { bigint: n.toString() }
+}
+
 function prepare$number (n) {
   if (!Number.isFinite(n))
     return { number: n + '' };
@@ -979,7 +993,7 @@ function prepare$number (n) {
 function prepare$primitive (primitive, where) {
   switch (typeof po) {
     case 'boolean':
-    case 'number':
+    case 'number': /* not all cases, see prepare$number */
     case 'string':
       return primitive;
   }

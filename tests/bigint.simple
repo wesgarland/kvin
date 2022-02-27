@@ -1,0 +1,14 @@
+#! /usr/bin/env node
+/**
+ * @file        biginit.simple
+ *              Unit test for bigint support
+ * @author      Wes Garland, wes@kingsds.network
+ * @date        Feb 2022
+ */
+
+const bi=9007199254740992n;
+
+KVIN = require('../kvin');
+
+if (KVIN.parse(KVIN.stringify(bi)) !== bi)
+  throw new Error('bigint bug');
