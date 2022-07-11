@@ -716,6 +716,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
       case 'number':
         po[prop] = prepare$number(o[prop]);
         break;
+      case 'bigint':
+        po[prop] = prepare$bigint(o[prop]);
+        break;
       case 'boolean':
       case 'string':
         po[prop] = prepare$primitive(o[prop], where + '.' + prop)
