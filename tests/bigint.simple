@@ -12,3 +12,10 @@ KVIN = require('../kvin');
 
 if (KVIN.parse(KVIN.stringify(bi)) !== bi)
   throw new Error('bigint bug');
+
+let obj = {bigint: bi};
+if (KVIN.parse(KVIN.stringify(obj)).bigint !== obj.bigint)
+  throw new Error('bigint bug');
+
+
+
