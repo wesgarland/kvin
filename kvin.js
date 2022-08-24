@@ -819,6 +819,41 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   return pa
 }
 
+/** Prepare a Map.  This can be robustly handled with the existing array preparation, as
+ *  long as we differentiate it from normal arrays and treat keys and values separately.
+ *
+ *  @param   seen   The current seen list for this marshal - things pointers point to
+ *  @param   o      The Map we are preparing
+ *  @param   where  Human description of where we are in the object, for debugging purposes
+ */
+ KVIN.prototype.prepare$Map = function prepare$Map (seen, o, where) {
+
+  let pm = { mapKeys: [], mapVals: [] }
+
+  let mapKeyArr = Array.from(o.keys());
+  pm.mapKeys = prepare$Array(seen, mapKeyArr, where);
+
+  let mapValArr = Array.from(o.values());
+  pm.mapVals = prepare$Array(seen, mapValArr, where);
+
+  let keys = Object.keys(o)
+  if (keys.length !== o.length) {
+    for (let j = 0; j < keys.length; j++) {
+      let key = keys[j]
+      if (!pm.hasOwnProperty('ps')) {
+        pm.ps = {}
+      }
+      if (typeof o[key] !== 'object' && isPrimitiveLike(o[key])) {
+        pm.ps[key] = o[key]
+      } else {
+        pm.ps[key] = prepare(seen, o[key], where + '.' + key)
+      }
+    }
+  }
+
+  return pm;
+}
+
 /** Detect JavaScript strings which contain ill-formed UTF-16 sequences */
 function notUnicode(s) {
   if (/[\ud800-\udbff][^\udc00-\udfff]/.test(s)) {
