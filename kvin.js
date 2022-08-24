@@ -359,6 +359,31 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
   return fn
 }
 
+KVIN.prototype.unprepare$Map = function unprepare$Map (seen, po, position) {
+  
+  let m = new Map();
+
+  seen.push(m)
+
+  let mapKeyArr = this.unprepare$Array(seen, po.mapKeys, position);
+  let mapValArr = this.unprepare$Array(seen, po.mapVals, position);
+
+  for (let i = 0; i < mapKeyArr.length; i++)
+  {
+    m.set(mapKeyArr[i], mapValArr[i]);
+  }
+
+  if (po.hasOwnProperty('ps')) {
+    for (let prop in po.ps) {
+      if (po.ps.hasOwnProperty(prop)) {
+        m[prop] = this.unprepare(seen, po.ps[prop], position + '.' + prop)
+      }
+    }
+  }
+
+  return m;
+}
+
 function unprepare$bigint(arg) {
   return BigInt(arg);
 }
