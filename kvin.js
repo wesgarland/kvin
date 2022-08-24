@@ -629,6 +629,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (o.constructor === Map) {
     return this.prepare$Map(seen, o, where)
   }
+  if (o.constructor === WeakMap) {
+    return prepare$WeakMap(o)
+  }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return this.prepare$boxedPrimitive(o)
   }
