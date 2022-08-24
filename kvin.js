@@ -854,6 +854,17 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   return pm;
 }
 
+/** Prepare a WeakMap. The closest to correct behaviour for a WeakMap serialized over
+ *  a network is for the resulting WeakMap to be empty, since the WeakMap keys are
+ *  by design never directly referenced or retained, and cannot be iterated on.
+ *  This is why we pass an empty array to the constructor.
+ *
+ *  @param   o      The WeakMap we are preparing
+ */
+ KVIN.prototype.prepare$WeakMap = function prepare$WeakMap (o) {
+  return { ctr: ctors.indexOf(o.constructor), arg: [] }
+}
+
 /** Detect JavaScript strings which contain ill-formed UTF-16 sequences */
 function notUnicode(s) {
   if (/[\ud800-\udbff][^\udc00-\udfff]/.test(s)) {
