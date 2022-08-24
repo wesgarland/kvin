@@ -840,10 +840,10 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   let pm = { mapKeys: [], mapVals: [] }
 
   let mapKeyArr = Array.from(o.keys());
-  pm.mapKeys = prepare$Array(seen, mapKeyArr, where);
+  pm.mapKeys = this.prepare$Array(seen, mapKeyArr, where);
 
   let mapValArr = Array.from(o.values());
-  pm.mapVals = prepare$Array(seen, mapValArr, where);
+  pm.mapVals = this.prepare$Array(seen, mapValArr, where);
 
   let keys = Object.keys(o)
   if (keys.length !== o.length) {
@@ -852,10 +852,10 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
       if (!pm.hasOwnProperty('ps')) {
         pm.ps = {}
       }
-      if (typeof o[key] !== 'object' && isPrimitiveLike(o[key])) {
+      if (typeof o[key] !== 'object' && this.isPrimitiveLike(o[key])) {
         pm.ps[key] = o[key]
       } else {
-        pm.ps[key] = prepare(seen, o[key], where + '.' + key)
+        pm.ps[key] = this.prepare(seen, o[key], where + '.' + key)
       }
     }
   }
