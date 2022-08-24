@@ -258,6 +258,9 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('fnName')) {
     return this.unprepare$function(seen, po, position)
   }
+  if (po.hasOwnProperty('mapKeys') || po.hasOwnProperty('mapVals')) {
+    return this.unprepare$Map(seen, po, position)
+  }
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
     return this.unprepare$ArrayBuffer16(seen, po, position)
   }
@@ -622,6 +625,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   }
   if (ArrayBuffer.isView(o)) {
     return this.prepare$ArrayBuffer(o)
+  }
+  if (o.constructor === Map) {
+    return this.prepare$Map(seen, o, where)
   }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return this.prepare$boxedPrimitive(o)
