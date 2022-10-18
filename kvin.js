@@ -192,10 +192,9 @@ KVIN.prototype.ctors = [
   Function,
   Error,
   Promise,
+  typeof URL !== 'undefined' ? URL : undefined, /* not part of ES => feature-test */
+  Date,
 ];
-if (typeof URL !== 'undefined'){
-  KVIN.prototype.ctors.push(URL)
-}
 
 KVIN.prototype.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
 
@@ -297,6 +296,14 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
   let o
   let constructor;
 
+  function construct(constructor, args) {
+    function fun() {
+      return constructor.apply(this, args);
+    }
+    fun.prototype = constructor.prototype;
+    return new fun();
+  }
+  
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
     if (this.userCtors.hasOwnProperty(po.ctr))
       constructor = this.userCtors[po.ctr];
@@ -306,11 +313,12 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
     constructor = this.ctors[po.ctr]
   }
 
-  if (po.hasOwnProperty('arg')) {
-    o = new constructor(po.arg)
-  } else {
-    o = new constructor() // eslint-disable-line
-  }
+  if (po.hasOwnProperty('args'))
+    o = construct(constructor, po.args);
+  else if (po.hasOwnProperty('arg'))
+    o = new constructor(po.arg);
+  else
+    o = new constructor(); // eslint-disable-line
 
   if (po.ctr === 'Error')
   {
@@ -674,16 +682,15 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     ret.fnName = o.name
   }
 
-  if (typeof o.toJSON === 'function') {
-    ret.arg = o.toJSON()
-  } else {
-    if (o.constructor !== this.standardObjects.Object)
-      ret.arg = o.toString()
-  }
+  if (typeof o.toKVIN === 'function')
+    return Object.assign(ret, o.toKVIN(o, this));
+  else if (typeof o.toJSON === 'function')
+    ret.arg = o.toJSON();
+  else if (o.toString !== this.standardObjects.Object.prototype.toString)
+    ret.arg = o.toString();
 
   if (typeof o.hasOwnProperty === 'undefined') {
-    console.warn('KVIN Warning: ' + where + ' is missing .hasOwnProperty -- skipping')
-    return prepare$undefined(o)
+    return ret;
   }
 
   /* Iterate over the properties and prepare each in turn, recursing
@@ -1106,6 +1113,7 @@ KVIN.prototype.unmarshal = function serialize$$unmarshal (obj) {
     case 'v5':
     case 'v6':
     case 'v7':
+    case 'v8':
       break
     default:
       throw new Error(`Cannot unmarshal ${obj._serializeVerId} objects - please update Kvin`)
@@ -1142,7 +1150,7 @@ KVIN.prototype.deserialize = function deserialize (str) {
   return this.unmarshal(JSON.parse(str))
 }
 
-KVIN.prototype.serializeVerId = 'v7'
+KVIN.prototype.serializeVerId = 'v8'
   
 /* JSON-like interface */
 KVIN.prototype.parse = KVIN.prototype.deserialize;  
