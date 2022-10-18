@@ -185,7 +185,7 @@ The algorithm KVIN uses to prepare `myObject` when it is an instance of a custom
 
 ##### toKVIN(o, kvin)
 toKVIN must be infallible and return an object. It is invoked with two arguments:
-- `o` - this is the object to serialize (also `this` when using a fully-formed toKVIN function)
+- `o` - this is the object to serialize (also `this` when using a heavy-weight toKVIN function)
 - `kvin` - this is the instance of KVIN doing the serialization
 
 ##### toJSON()
@@ -194,8 +194,19 @@ toJSON must be infallible and return a string or an object which can be serializ
 #### Deserializing Custom Classes
 The algorithm KVIN uses to deserialize instances of custom classes is as follows:
 1. Lookup the constructor function on `this` (instance of KVIN) `.userCtors` based on the `name` propery of the marshaled object.
-2. Run the constructor, passing it the `args` property of the marshaled object.
+2. Run the constructor, with the arguments in `args` property or the argument which is the `arg` property of the marshaled object.
 3. Unmarshal and copy any properties found in the `ps` property of the marshaled object.
+
+#### Strategies for Serializing Custom Classes
+1. Naive: don't do anything; KVIN marshal based on the constructor's name and enumerable properties. When it comes time to unmarshal, KVIN will 
+   apply these to the newly-constructed object during unmarshaling, and use the function in KVIN.userCtors which matches constructor's name as
+   the constructor.
+2. toJSON: If an object has a toJSON function, KVIN will marshal the result of this function, and pass the unmarshaled value to the same-named
+   constructor during unmarshaling. This is how KVIN supports the Date() class.
+3. toKVIN: If an object has a toKVIN function, KVIN will merge the results of this function with the marshaled object (containing the constructor
+   name); this merge object will be used as-is in the unmarshal phase, and KVIN will not try to marshal the properties. The most useful properties
+   of this return value are `args`, which is an Array of arguments to pass to the constructor during unmarshaling, and `ps`, which is an object of
+   properties to apply to the instance after construction.
 
 #### Examples
 
@@ -216,7 +227,7 @@ const bob_o = KVIN.parse(bob_s);
 console.log(bob.random === bob_.random,  bob === bob_o); /* outputs "true false" */
 ```
 
-This example usepasses no arguments into the constructor during deserialization, and restores properties after construction by assignment:
+This example passes one argument to the constructor during deserialization, and restores properties after construction by assignment:
 ```javascript
 const KVIN = require('kvin');
 
@@ -243,3 +254,28 @@ const bob_o = KVIN.parse(bob_s);
 console.log(bob.name, bob_o.name, bob === bob_o); /* outputs "bob weir bob weir false" */
 ```
 
+This example serializes an own-property method of a custom class which has access to the variable rando by closure. The toKVIN
+function creates an arguments array which is applied to the MyClass constructor when it is instantiated during deserialization.
+```javascript
+KVIN.makeFunctions = true;
+
+function MyClass(rando)
+{
+  if (typeof rando === 'undefined')
+    rando = Math.random();
+  this.bar = function() {
+    return rando;
+  }
+}
+MyClass.prototype.hello = 'world';
+MyClass.prototype.toKVIN = function toKVIN() {
+  return {args: [this.bar()]}; /* ctor knows what to do with arg */
+};
+
+const foo = new MyClass();
+const s_foo = KVIN.stringify(foo);
+const p_foo = KVIN.parse(s_foo);
+
+assert(foo.bar() === p_foo.bar());
+assert(p_foo instanceof foo.constructor);
+```
