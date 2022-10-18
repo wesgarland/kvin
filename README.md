@@ -131,29 +131,115 @@ kvin.serialize({foo: "bar"});
 
 ### Module Exports
 #### API Functions
-| Function       | Argument	| Behaviour
+| Function       | Argument     | Behaviour
 |----------------|--------------|-------------------------------------------------------------
-| serialize 	 | any		| returns a string representing the argument
-| serializeAsync | any		| returns a Promise which resolves to a string representing the argument. Any Promises encountered while traversing the object graph (argument) will be awaited, and their resolved values will be serialized. Deserialization will generate Promises which resolve to these values.
-| deserialize    | string	| returns a facsimile of the argument passed to serialize
-| stringify      | any		| alias for serialize
-| parse          | any		| alias for deserialize
-| marshal	 | any		| like serialize, but returns a JSON-compatible object 
-| marshalAsync   | any		| like serializeAsync, but returns a JSON-compatible object
-| unmarshal	 | object	| like deserialize, but operates on marshaled objects instead of strings
+| serialize      | any          | returns a string representing the argument
+| serializeAsync | any          | returns a Promise which resolves to a string representing the argument. Any Promises encountered while traversing the object graph (argument) will be awaited, and their resolved values will be serialized. Deserialization will generate Promises which resolve to these values.
+| deserialize    | string       | returns a facsimile of the argument passed to serialize
+| stringify      | any          | alias for serialize
+| parse          | any          | alias for deserialize
+| marshal        | any          | like serialize, but returns a JSON-compatible object 
+| marshalAsync   | any          | like serializeAsync, but returns a JSON-compatible object
+| unmarshal      | object       | like deserialize, but operates on marshaled objects instead of strings
 | kvin           | object       | constructor to create a custom KVIN instance, with its own tuning parameters and Standard Classes.
 
 ### KVIN Instance Properties
-| Property   	          | Default | Description
+| Property                | Default | Description
 |-------------------------|---------|---------------------------------------------------------
 | allowConstructorList    |         | Array which is a list of non-standard constructors that KVIN will try to deserialize
 | userCtors               | {}      | Dictionary; keys are constructor names, values are constructor functions for user-defined classes
 | makeFunctions           | false   | When true allows Kvin to deserialize Functions
 
 #### Tuning Values
-| Property   	          | Default | Description
+| Property                | Default | Description
 |-------------------------|---------|---------------------------------------------------------
 | tune                    |         | Set to "speed" for fast operation, or "size" for small operation. Default value, undefined, balances both.
-| typedArrayPackThreshold | 8	    | When to start trying to use islands-of-zeros encoding; bigger numbers mean faster encoding/decoding but longer strings.
+| typedArrayPackThreshold | 8       | When to start trying to use islands-of-zeros encoding; bigger numbers mean faster encoding/decoding but longer strings.
 | scanArrayThreshold      | 8       | When to start trying to use sparse-array representation for Arrays; bigger numbers mean faster encoding/decoding but longer strings.
+
+## Advanced Topics
+### Custom Contexts
+The KVIN object has a variety of tuning and extensibility parameters.  When writing non-trivial programs or library code that need specific
+KVIN features, it is advisable to instantiate a KVIN context to avoid accidentally altering a default behaviour of KVIN upon which another
+developer may be depending.
+
+```javascript
+const KVIN = new (require('kvin').KVIN)();
+KVIN.tune = "speed";
+
+const s = KVIN.stringify(myObject);
+console.log(KVIN.parse(s));
+```
+
+### Custom Classes
+#### Serializing Custom Classes
+KVIN can be used to serialize instances of custom classes, however in many cases, KVIN will need some
+help understanding hidden internal state.
+
+The algorithm KVIN uses to prepare `myObject` when it is an instance of a custom class is as follows:
+1. Memoize the constructor's name (`myObject.constructor.name`) as the `ctr` property of the prepared object
+2. If the object has a `toKVIN` method, invoke it and merge the return value with the prepared object. Stop (do not perform steps 3-5).
+3. If the object has a `toJSON` method, invoke it and memoize the return value as the arg property of the prepared object.
+4. If the object has a `toString` method, invoke it and memoize the return value as the arg property of the marshaled object.
+5. If the object has an `ownProperty` method, enumerate the own properties of the object and store them in marshaled format in the object which is the `ps` property of the marshaled object.
+
+##### toKVIN(o, kvin)
+toKVIN must be infallible and return an object. It is invoked with two arguments:
+- `o` - this is the object to serialize (also `this` when using a fully-formed toKVIN function)
+- `kvin` - this is the instance of KVIN doing the serialization
+
+##### toJSON()
+toJSON must be infallible and return a string or an object which can be serialized with JSON.
+
+#### Deserializing Custom Classes
+The algorithm KVIN uses to deserialize instances of custom classes is as follows:
+1. Lookup the constructor function on `this` (instance of KVIN) `.userCtors` based on the `name` propery of the marshaled object.
+2. Run the constructor, passing it the `args` property of the marshaled object.
+3. Unmarshal and copy any properties found in the `ps` property of the marshaled object.
+
+#### Examples
+
+This example passes no arguments into the constructor during deserialization, and restores properties after construction by assignment:
+```javascript
+const KVIN = require('kvin');
+
+function Person(firstName, lastName) {
+  this.firstName = firstName;
+  this.lastName  = lastName;
+  this.random    = Math.random();
+}
+KVIN.userCtors.Person = Person;
+
+const bob = new Person('bob', 'weir');
+const bob_s = KVIN.stringify(bob);
+const bob_o = KVIN.parse(bob_s);
+console.log(bob.random === bob_.random,  bob === bob_o); /* outputs "true false" */
+```
+
+This example usepasses no arguments into the constructor during deserialization, and restores properties after construction by assignment:
+```javascript
+const KVIN = require('kvin');
+
+class Person {
+  #firstName;
+  #lastName;
+
+  constructor(arg) {
+    this.#firstName = arg.firstName;
+    this.#lastName = arg.lastName;
+  }
+  get name() {
+    return this.#firstName + ' ' + this.#lastName;
+  }
+  toJSON() {
+    return { firstName: this.#firstName, lastName: this.#lastName };
+  }
+}
+KVIN.userCtors.Person = Person;
+
+const bob = new Person({ firstName: 'bob', lastName: 'weir' });
+const bob_s = KVIN.stringify(bob);
+const bob_o = KVIN.parse(bob_s);
+console.log(bob.name, bob_o.name, bob === bob_o); /* outputs "bob weir bob weir false" */
+```
 
