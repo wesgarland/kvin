@@ -257,6 +257,9 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('fnName')) {
     return this.unprepare$function(seen, po, position)
   }
+  if (po.hasOwnProperty('mapKeys') || po.hasOwnProperty('mapVals')) {
+    return this.unprepare$Map(seen, po, position)
+  }
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
     return this.unprepare$ArrayBuffer16(seen, po, position)
   }
@@ -362,6 +365,31 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
   }
 
   return fn
+}
+
+KVIN.prototype.unprepare$Map = function unprepare$Map (seen, po, position) {
+  
+  let m = new Map();
+
+  seen.push(m)
+
+  let mapKeyArr = this.unprepare$Array(seen, po.mapKeys, position);
+  let mapValArr = this.unprepare$Array(seen, po.mapVals, position);
+
+  for (let i = 0; i < mapKeyArr.length; i++)
+  {
+    m.set(mapKeyArr[i], mapValArr[i]);
+  }
+
+  if (po.hasOwnProperty('ps')) {
+    for (let prop in po.ps) {
+      if (po.ps.hasOwnProperty(prop)) {
+        m[prop] = this.unprepare(seen, po.ps[prop], position + '.' + prop)
+      }
+    }
+  }
+
+  return m;
 }
 
 function unprepare$bigint(arg) {
@@ -631,6 +659,12 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (ArrayBuffer.isView(o)) {
     return this.prepare$ArrayBuffer(o)
   }
+  if (o.constructor === Map) {
+    return this.prepare$Map(seen, o, where)
+  }
+  if (o.constructor === WeakMap) {
+    return prepare$WeakMap(o)
+  }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return this.prepare$boxedPrimitive(o)
   }
@@ -824,6 +858,52 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     pa.len = o.length
   }
   return pa
+}
+
+/** Prepare a Map.  This can be robustly handled with the existing array preparation, as
+ *  long as we differentiate it from normal arrays and treat keys and values separately.
+ *
+ *  @param   seen   The current seen list for this marshal - things pointers point to
+ *  @param   o      The Map we are preparing
+ *  @param   where  Human description of where we are in the object, for debugging purposes
+ */
+ KVIN.prototype.prepare$Map = function prepare$Map (seen, o, where) {
+
+  let pm = { mapKeys: [], mapVals: [] }
+
+  let mapKeyArr = Array.from(o.keys());
+  pm.mapKeys = this.prepare$Array(seen, mapKeyArr, where);
+
+  let mapValArr = Array.from(o.values());
+  pm.mapVals = this.prepare$Array(seen, mapValArr, where);
+
+  let keys = Object.keys(o)
+  if (keys.length !== o.length) {
+    for (let j = 0; j < keys.length; j++) {
+      let key = keys[j]
+      if (!pm.hasOwnProperty('ps')) {
+        pm.ps = {}
+      }
+      if (typeof o[key] !== 'object' && this.isPrimitiveLike(o[key])) {
+        pm.ps[key] = o[key]
+      } else {
+        pm.ps[key] = this.prepare(seen, o[key], where + '.' + key)
+      }
+    }
+  }
+
+  return pm;
+}
+
+/** Prepare a WeakMap. The closest to correct behaviour for a WeakMap serialized over
+ *  a network is for the resulting WeakMap to be empty, since the WeakMap keys are
+ *  by design never directly referenced or retained, and cannot be iterated on.
+ *  This is why we pass an empty array to the constructor.
+ *
+ *  @param   o      The WeakMap we are preparing
+ */
+ KVIN.prototype.prepare$WeakMap = function prepare$WeakMap (o) {
+  return { ctr: ctors.indexOf(o.constructor), arg: [] }
 }
 
 /** Detect JavaScript strings which contain ill-formed UTF-16 sequences */

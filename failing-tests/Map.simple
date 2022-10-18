@@ -1,0 +1,195 @@
+#! /usr/bin/env node
+
+const kvin = require('../kvin');
+
+var A = [0,1,2,3,4];
+var O = { a: 'HELL0', b: 7269767648, c: true };
+
+var M = new Map();
+
+M.set("nan", NaN);
+M.set("inf", Infinity);
+M.set("negInf", -Infinity);
+M.set(NaN, "nanKey");
+M.set(Infinity, "infKey");
+M.set(-Infinity, "negInfKey");
+M.set("null", null);
+M.set(null, "nullKey");
+M.set("und", undefined);
+M.set(undefined, "undKey");
+M.set("fal", false);
+M.set("tru", true);
+M.set(false, "falKey");
+M.set(true, "truKey");
+M.set("arr", A);
+M.set(A, "arrKey");
+M.set("obj", O);
+M.set(O, "objKey");
+M.set(M, "cirKey");
+M.set("cirVal", M);
+
+function entryCompare(entryIndex, entryA, entryB, isRecursion=false)
+{
+  switch (entryIndex) {
+    case 0: // "nan"
+      if (entryB[0] !== entryA[0]) throw new Error('case:"nan":keys');
+      if (!(Number.isNaN(entryB[1]) && Number.isNaN(entryA[1]))) throw new Error('case:"nan":vals');;
+      break;
+    case 3: // NaN
+      if (!(Number.isNaN(entryB[0]) && Number.isNaN(entryA[0]))) throw new Error('case:NaN:keys');
+      if (entryB[1] !== entryA[1]) throw new Error('case:NaN:vals');
+      break;
+    case 6: // "null"
+      if (entryB[0] !== entryA[0]) throw new Error('case:"null":keys');
+      if (!(Object.prototype.toString.call(entryB[1]) == '[object Null]' && Object.prototype.toString.call(entryA[1]) == '[object Null]')) throw new Error('case:"null":vals');
+      break;
+    case 7: // null
+      if (!(Object.prototype.toString.call(entryB[0]) == '[object Null]' && Object.prototype.toString.call(entryA[0]) == '[object Null]')) throw new Error('case:null:keys');
+      if (entryB[1] !== entryA[1]) throw new Error('case:null:vals');
+      break;
+    case 8: // "und"
+      if (entryB[0] !== entryA[0]) throw new Error('case:"und":keys');
+      if (!(Object.prototype.toString.call(entryB[1]) == '[object Undefined]' && Object.prototype.toString.call(entryA[1]) == '[object Undefined]')) throw new Error('case:"und":vals');
+      break;
+    case 9: // undefined
+      if (!(Object.prototype.toString.call(entryB[0]) == '[object Undefined]' && Object.prototype.toString.call(entryA[0]) == '[object Undefined]')) throw new Error('case:undefined:keys');
+      if (entryB[1] !== entryA[1]) throw new Error('case:undefined:vals');
+      break;
+    case 14: // "arr"
+      if (entryB[0] !== entryA[0]) throw new Error('case:"arr":keys');
+      for (let i = 0; i < entryA[1].length; i++) if (entryB[1][i] !== entryA[1][i]) throw new Error('case:"arr":vals');
+      break;
+    case 15: // A
+      for (let i = 0; i < entryA[0].length; i++) if (entryB[0][i] !== entryA[0][i]) throw new Error('case:A:keys');
+      if (entryB[1] !== entryA[1]) throw new Error('case:A:vals');
+      break;
+    case 16: // "obj"
+      if (entryB[0] !== entryA[0]) throw new Error('case:"obj":keys');
+      for (objectKey in entryA[1]) if (entryB[1][objectKey] !== entryA[1][objectKey]) throw new Error(entryB[1][objectKey] + ',' + entryA[1][objectKey])//('case:"obj":vals');
+      break;
+    case 17: // O
+      for (objectKey in entryA[0]) if (entryB[0][objectKey] !== entryA[0][objectKey]) throw new Error('case:O:keys');
+      if (entryB[1] !== entryA[1]) throw new Error('case:O:vals');
+      break;
+    case 18: // M
+      if (!(isRecursion ? ((entryB[0].size == entryA[0].size) && (entryB[0].constructor == entryA[0].constructor)) : (validMaps(entryA[0], entryB[0], isRecursion=true)))) throw new Error('case:M:keys');
+      if (entryB[1] !== entryA[1]) throw new Error('case:M:vals');
+      break;
+    case 19: // "cirVal"
+      if (entryB[0] !== entryA[0]) throw new Error('case:"cirVal":keys');
+      if (!(isRecursion ? ((entryB[1].size == entryA[1].size) && (entryB[1].constructor == entryA[1].constructor)) : (validMaps(entryA[1], entryB[1], isRecursion=true)))) throw new Error('case:"cirVal":vals');
+      break;
+    default:
+      if (entryB[0] !== entryA[0]) throw new Error('case:' + (entryA[0]).toString() + ':keys:' + Object.prototype.toString.call(entryA[0]));
+      if (entryB[1] !== entryA[1]) throw new Error('case:' + (entryA[0]).toString() + ':vals:' + Object.prototype.toString.call(entryA[0]));
+  }
+  return true;
+}
+
+function validMaps(inputMap, outputMap, isRecursion=false)
+{
+  let inputIterator = inputMap.entries();
+  let outputIterator = outputMap.entries();
+
+  let validSize = (inputMap.size == outputMap.size);
+
+  for (let i = 0; i < outputMap.size; i++)
+  {
+    let nextInputEntry = inputIterator.next().value;
+    let nextOutputEntry = outputIterator.next().value;
+
+    let inKeyType = Object.prototype.toString.call(nextInputEntry[0]);
+    let outKeyType = Object.prototype.toString.call(nextOutputEntry[0]);
+    let inValType = Object.prototype.toString.call(nextInputEntry[1]);
+    let outValType = Object.prototype.toString.call(nextOutputEntry[1]);
+
+    if (isRecursion && ([inKeyType, outKeyType, inValType, outValType].includes('[object Map]'))) continue;
+
+    entryCompare(i, nextInputEntry, nextOutputEntry, isRecursion);
+  }
+
+  return true;
+}
+
+var mapsAreValid;
+
+// Object containing Map
+
+var objM = {};
+objM.M = new Map(M.entries());
+
+const serObjM = kvin.serialize(objM);
+const newObjM = kvin.deserialize(serObjM);
+
+mapsAreValid = validMaps(M, newObjM.M);
+console.log("Object containing Map", mapsAreValid);
+
+// Array containing Map
+
+var arrM = [];
+arrM.push(new Map(M.entries()));
+
+const serArrM = kvin.serialize(arrM);
+const newArrM = kvin.deserialize(serArrM);
+
+mapsAreValid = validMaps(M, newArrM[0]);
+console.log("Array containing Map", mapsAreValid);
+
+// Array containing Object containing Map
+
+var arrObjM = [];
+arrObjM.push({ M: new Map(M.entries()) });
+
+const serArrObjM = kvin.serialize(arrObjM);
+const newArrObjM = kvin.deserialize(serArrObjM);
+
+mapsAreValid = validMaps(M, newArrObjM[0].M);
+console.log("Array containing Object containing Map", mapsAreValid);
+
+// Object containing Array containing Map
+
+var objArrM = {};
+objArrM.M = [ new Map(M.entries()) ];
+
+const serObjArrM = kvin.serialize(objArrM);
+const newObjArrM = kvin.deserialize(serObjArrM);
+
+mapsAreValid = validMaps(M, newObjArrM.M[0]);
+console.log("Object containing Array containing Map", mapsAreValid);
+
+// Map containing Map
+
+var mapM = new Map();
+mapM.set("M", M);
+
+const serMapM = kvin.serialize(mapM);
+const newMapM = kvin.deserialize(serMapM);
+
+mapsAreValid = validMaps(M, newMapM.get("M"));
+console.log("Map containing Map", mapsAreValid);
+
+// Map containing Map containing Map
+
+var mapMapM = new Map();
+mapMapM.set("mapM", new Map(M.entries()));
+
+const serMapMapM = kvin.serialize(mapMapM);
+const newMapMapM = kvin.deserialize(serMapMapM);
+
+mapsAreValid = validMaps(M, newMapMapM.get("mapM"));
+console.log("Map containing Map containing Map", mapsAreValid);
+
+// Map containing only itself
+
+var cirM = new Map();
+cirM.set(cirM, "cirKey");
+cirM.set("cirVal", cirM);
+
+const serCirM = kvin.serialize(cirM);
+const newCirM = kvin.deserialize(serCirM);
+
+// XXX : I'm not positive how to meaningfully test the equivalency of this last Ouroboros
+mapsAreValid = ((cirM.size == newCirM.size) && (typeof cirM == typeof newCirM));
+if (!mapsAreValid) throw new Error('cirM');
+console.log("Map containing only itself", mapsAreValid);
+
