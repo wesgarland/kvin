@@ -1,0 +1,46 @@
+#! /usr/bin/env node
+/**
+ * @file        toKVIN.simple
+ *              Verify custom constructor serialization via toKVIN method. This
+ *              internal state cannot be persisted for two reasons: 
+ *
+ *              1. method bar is an ownProperty and gets deserialized outside of the constructor,
+ *                 after construction, so it doesn't have access to rando via closure
+ *              2. rando is different every time the constructor is instanciated, but we need the
+ *                 value at serialization time...so toKVIN figures this all out.
+ *
+ * @author      Wes Garland, wes@distributive.network
+ * @date        Oct 2022
+ */
+'use strict';
+
+const assert = require('assert');
+const KVIN = require('..');
+
+KVIN.userCtors.MyClass = MyClass;
+KVIN.makeFunctions = true;
+
+function MyClass(rando)
+{
+  if (typeof rando === 'undefined')
+    rando = Math.random();
+
+  assert(arguments.length < 2, 'unexpected ctor args [' + Array.from(arguments).join() + ']');
+  assert(this instanceof MyClass, 'not invoked as a constructor');
+
+  this.bar = function() {
+    return rando;
+  }
+}
+MyClass.prototype.hello = 'world';
+MyClass.prototype.toKVIN = function toKVIN() {
+  return {args: [this.bar()]}; /* ctor knows what to do with arg */
+};
+
+const foo = new MyClass();
+const s_foo = KVIN.stringify(foo);
+const p_foo = KVIN.parse(s_foo);
+
+assert(foo !== p_foo, 'objects are the same?!');
+assert(foo.bar() === p_foo.bar(), 'internal state did not persist');
+console.log('Test passed');

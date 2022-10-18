@@ -1,0 +1,32 @@
+#! /usr/bin/env node
+/**
+ * @file	anon-own-method.simple
+ *              Verify that we can serialize a custom constructor that adds an
+ *              anonymous function directly on `this`
+ * @author	Wes Garland, wes@distributive.network
+ * @date	Oct 2022
+ */
+'use strict';
+
+const assert = require('assert');
+const KVIN = require('..');
+
+KVIN.userCtors.MyClass = MyClass;
+KVIN.makeFunctions = true;
+
+function MyClass()
+{
+  assert(arguments.length === 0, 'unexpected ctor args');
+  assert(this instanceof MyClass, 'not invoked as a constructor');
+  this.bar = function() {
+    return 'hello';
+  }
+}
+MyClass.prototype.hello = 'world';
+
+const foo = new MyClass();
+const s_foo = KVIN.stringify(foo);
+const p_foo = KVIN.parse(s_foo);
+
+assert(`${p_foo.bar()} ${p_foo.hello}` === 'hello world');
+console.log('Test passed -', p_foo.bar(), p_foo.hello);

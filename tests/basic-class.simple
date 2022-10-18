@@ -1,0 +1,26 @@
+#! /usr/bin/env node
+/**
+ * @file	basic-class.simple
+ *              Verify custom constructor serialization via toKVIN for very very basic classes
+ * @author	Wes Garland, wes@distributive.network
+ * @date	Oct 2022
+ */
+'use strict';
+
+const KVIN = require('..');
+const assert = require('assert');
+
+function MyClass()
+{
+}
+MyClass.prototype.hello = 'world';
+KVIN.userCtors.MyClass = MyClass;
+
+const foo = new MyClass();
+foo.bar = 'hello';
+
+const s_foo = KVIN.stringify(foo);
+const p_foo = KVIN.parse(s_foo);
+
+assert(`${p_foo.bar} ${p_foo.hello}` === 'hello world');
+console.log('Test passed -', p_foo.bar, p_foo.hello);

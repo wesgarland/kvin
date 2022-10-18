@@ -1,0 +1,23 @@
+#! /usr/bin/env node
+/**
+ * @file        toJSON.simple
+ *              Verify "custom" constructor serialization via toJSON method of the built-in Date class.
+ *              Date is not special-cased in KVIN, other than being listed in the pre-defined ctors.
+ *
+ * @author      Wes Garland, wes@distributive.network
+ * @date        Oct 2022
+ */
+'use strict';
+
+const assert = require('assert');
+const KVIN = require('..');
+
+const foo = new Date();
+for (let i=0; i < 10000000; i++) Math.random();
+const s_foo = KVIN.stringify(foo);
+const p_foo = KVIN.parse(s_foo);
+
+assert(foo !== p_foo, 'objects are the same?!');
+assert(foo.toString() === p_foo.toString(), 'internal state did not persist');
+assert(p_foo instanceof foo.constructor);
+console.log('Test passed');
