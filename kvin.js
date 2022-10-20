@@ -98,16 +98,12 @@ function KVIN(ctors)
   // We always need to initialize the standardObjects. It is used for comparisons for primitive types etc
   this.standardObjects = {};
   for (let ctor of KVIN.prototype.ctors) {
-    if (!ctor) {
-      console.warn(`kvin:102: KVIN might have bad constructors in its list:`, KVIN.prototype.ctors);
+    if (!ctor)
       continue;
-    }
     this.standardObjects[ctor.name] = ctor;
   }
 
-  // duplicate the global list of ctors, filtering out any falsey values (eg.
-  // standard global objects not present in the present definition of "global")
-  this.ctors = [].concat(KVIN.prototype.ctors).filter(ctor => !!ctor);
+  this.ctors = [].concat(KVIN.prototype.ctors);
   
   if (!ctors)
     return;
@@ -116,6 +112,8 @@ function KVIN(ctors)
   {
     for (let ctor of ctors)
     {
+      if (!ctor)
+        continue;
       this[ctor.name] = ctor
       for (let i=0; i < this.ctors.length; i++)
       {
@@ -131,6 +129,8 @@ function KVIN(ctors)
       for (let i=0; i < this.ctors.length; i++)
       {
         let [ name, ctor ] = entry; 
+        if (!ctor)
+          continue;
         if (this.ctors[i].name === name)
           this.ctors[i] = ctor;
           this.standardObjects[name] = ctor;
