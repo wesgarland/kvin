@@ -105,7 +105,9 @@ function KVIN(ctors)
     this.standardObjects[ctor.name] = ctor;
   }
 
-  this.ctors = [].concat(KVIN.prototype.ctors);
+  // duplicate the global list of ctors, filtering out any falsey values (eg.
+  // standard global objects not present in the present definition of "global")
+  this.ctors = [].concat(KVIN.prototype.ctors).filter(ctor => !!ctor);
   
   if (!ctors)
     return;
