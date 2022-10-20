@@ -98,6 +98,8 @@ function KVIN(ctors)
   // We always need to initialize the standardObjects. It is used for comparisons for primitive types etc
   this.standardObjects = {};
   for (let ctor of KVIN.prototype.ctors) {
+    if (!ctor)
+      continue;
     this.standardObjects[ctor.name] = ctor;
   }
 
@@ -110,6 +112,8 @@ function KVIN(ctors)
   {
     for (let ctor of ctors)
     {
+      if (!ctor)
+        continue;
       this[ctor.name] = ctor
       for (let i=0; i < this.ctors.length; i++)
       {
@@ -125,6 +129,8 @@ function KVIN(ctors)
       for (let i=0; i < this.ctors.length; i++)
       {
         let [ name, ctor ] = entry; 
+        if (!ctor)
+          continue;
         if (this.ctors[i].name === name)
           this.ctors[i] = ctor;
           this.standardObjects[name] = ctor;
