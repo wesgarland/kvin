@@ -154,7 +154,7 @@ KVIN.prototype.scanArrayThreshold = 8
 /** Maxmimum number of arguments we can pass to a function in this engine.
  * @todo this needs to be detected at startup based on environment
  */
-const _vm_fun_maxargs = 100000
+const _vm_fun_maxargs = 30000;
 
 const littleEndian = (function () {
   let ui16 = new Uint16Array(1)
@@ -379,7 +379,7 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
       let island = po.isl[prop]
       let els = Array.isArray(island.arr) ? island.arr : this.unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
 
-      if (els.length - 3 <= _vm_fun_maxargs) {
+      if (els.length - 3 <= this.stackLimit || _vm_fun_maxargs) {
         if (els.length && (a.length < island['@'] + els.length)) {
           a.length = island['@'] + els.length
         }
@@ -848,7 +848,7 @@ KVIN.prototype.prepare$ArrayBuffer8 = function prepare$ArrayBuffer8 (o) {
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
 
-  const mss = _vm_fun_maxargs - 1
+  const mss = this.stackLimit || _vm_fun_maxargs - 1;
   let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
   let segments = []
   let s
