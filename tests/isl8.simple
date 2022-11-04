@@ -1,0 +1,62 @@
+#! /usr/bin/env node
+/**
+ * @file        isl8.simple
+ *              A test which ensures that the isl8 encoding works, and
+ *              doesn't blow up on large data. Data is encoded to try and
+ *              be representative of what we tend to find in astrometric
+ *              FITS files.
+ *
+ * @author      Wes Garland, wes@distributive.network
+ * @date        Nov 2022
+ */
+
+'use strict';
+const kvin = require('../kvin');
+
+const F = new Float64Array(1E5);
+
+for (let i=Math.floor(F.length * 0.1); i < F.length * 0.9; i++)
+{
+  if (Math.random() < 0.5)
+    F[i] = 0;
+  else
+    F[i] = Math.random();
+}
+
+F[0] = NaN;
+F[1] = Infinity;
+F[2] = -Infinity;
+
+const serF = kvin.serialize(F);
+const newF = kvin.deserialize(serF);
+
+function encodeUTF8(sin)
+{
+  return Buffer.from(sin);    
+}
+
+console.log(' memory size:', F.length * 8);
+console.log('   kvin size:', serF.length);
+console.log('est b64 size:', Math.floor(F.length * 8 * 8/6) + 2);
+console.log('       utf-8:', encodeUTF8(serF).length);
+console.log(' uri encoded:', encodeURI(serF).length);
+console.log('     escaped:', escape(serF).length);
+console.log('  kvin start:', serF.slice(0,200));
+console.log('    kvin end:', serF.slice(-100));
+
+/* ensure (de)serialization produces correct values */
+for (let i=0; i < F.length; i++) {
+  if (newF[i] !== F[i]) {
+    if (isNaN(newF[i]) && isNaN(F[i]))
+      continue;
+    throw new Error(`newF[${i}] = ${newF[i]}, F[${i}] = ${F[i]}`);
+  }
+}
+
+/* ensure (de)serialization produces correct types */
+for (let i=0; i < F.length; i++) {
+  if (typeof newF[i] !== typeof F[i]) {
+    throw new Error(`typeof newF[${i}] = ${typeof newF[i]}, typeof F[${i}] = ${typeof F[i]}`);
+  }
+}
+

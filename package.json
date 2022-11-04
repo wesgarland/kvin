@@ -27,9 +27,11 @@
   "scripts": {
     "postpublish": "PACKAGE_VERSION=$(cat package.json | grep \\\"version\\\" | head -1 | awk -F: '{ print $2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]') && git tag {v$PACKAGE_VERSION && git push --tags",
     "test": "peter tests",
-    "vtest": "peter -v tests"
+    "vtest": "peter -v tests",
+    "postpublish": "npm-hooks/postpublish",
+    "prepare": "npm-hooks/prepublish"
   },
   "devDependencies": {
-    "peter": "^2.3.5"
+    "peter": "^2.3.9"
   }
 }
