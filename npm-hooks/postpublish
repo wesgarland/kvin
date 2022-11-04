@@ -1,0 +1,11 @@
+#! /bin/bash
+#
+# @file         post-publish
+#               Hook which tags the package in git with the package version
+#               as it gets published.
+# @author       Wes Garland, wes@distributive.network
+# @date         Nov 2022
+#
+cd `dirname "$0"`/..
+PACKAGE_VERSION=$(cat package.json | egrep '^\s*"version":' | head -1 | awk -F: '{ print $2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]')
+git tag v$PACKAGE_VERSION && git push --tags

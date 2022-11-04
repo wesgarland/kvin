@@ -1,0 +1,42 @@
+#! /bin/bash
+#
+# @file         pre-publish
+#               Hook which prevents package publishing if the repository
+#               isn't in a nice, clean state.
+# @author       Wes Garland, wes@distributive.network
+# @date         Nov 2022
+#
+cd `dirname "$0"`/..
+
+yellow='\e[33m'
+normal='\e[0m'
+
+(git status --porcelain; echo DONE DONE) \
+| while read status filename
+  do
+    case "$status" in
+      "M")
+        echo "${filename} is not checked in"
+        EXITCODE=1
+      ;;
+      "DONE")
+         exit $EXITCODE
+      ;;
+      *)
+      ;;
+    esac
+  done
+if [ "$?" != "0" ]; then
+  echo
+  echo -e "${yellow}pre-publish: abort due to modified files${normal}" >/dev/stderr
+  echo
+  exit 1
+fi
+
+git ls-files --error-unmatch `find src -type f; find tests -type f` >/dev/null
+if [ "$?" != "0" ]; then
+  echo
+  echo -e "${yellow}pre-publish: abort due to files in package which aren't in repo${normal}" >/dev/stderr
+  echo
+  exit 1
+fi

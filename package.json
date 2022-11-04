@@ -25,9 +25,11 @@
   ],
   "scripts": {
     "test": "peter tests",
-    "vtest": "peter -v tests"
+    "vtest": "peter -v tests",
+    "postpublish": "npm-hooks/postpublish",
+    "prepare": "npm-hooks/prepublish"
   },
   "devDependencies": {
-    "peter": "^2.1.3"
+    "peter": "^2.3.9"
   }
 }
