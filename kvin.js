@@ -669,7 +669,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     return this.prepare$Map(seen, o, where)
   }
   if (o.constructor === WeakMap) {
-    return prepare$WeakMap(o)
+    return this.prepare$WeakMap(o)
   }
   if (o.constructor === String || o.constructor === Number || o.constructor === Boolean) {
     return this.prepare$boxedPrimitive(o)
@@ -909,7 +909,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
  *  @param   o      The WeakMap we are preparing
  */
  KVIN.prototype.prepare$WeakMap = function prepare$WeakMap (o) {
-  return { ctr: ctors.indexOf(o.constructor), arg: [] }
+  return { ctr: this.ctors.indexOf(o.constructor), arg: [] }
 }
 
 /** Detect JavaScript strings which contain ill-formed UTF-16 sequences */
