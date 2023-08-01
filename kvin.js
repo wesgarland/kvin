@@ -743,6 +743,12 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     }
 
     switch (typeof o[prop]) {
+      case 'number':
+        po[prop] = prepare$number(o[prop]);
+        break;
+      case 'bigint':
+        po[prop] = prepare$bigint(o[prop]);
+        break;
       case 'function':
       case 'object':
         if (o[prop] !== null) {
@@ -759,13 +765,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
             po[prop] = { seen: i }
           }
           break
-        } /* else fallthrough */
-      case 'number':
-        po[prop] = prepare$number(o[prop]);
-        break;
-      case 'bigint':
-        po[prop] = prepare$bigint(o[prop]);
-        break;
+        } /* else fallthrough null -> primitive */
       case 'boolean':
       case 'string':
         po[prop] = prepare$primitive(o[prop], where + '.' + prop)

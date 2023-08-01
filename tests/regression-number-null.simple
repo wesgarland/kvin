@@ -1,0 +1,19 @@
+#! /usr/bin/env node
+/**
+ * @file       regression-number-null.simple
+ *             Regression test which demonstrates a bug in 1.12 from fe644a34 affecting serialization
+ *             of null when used in an object alongside instances of classes that aren't Object/Array.
+ * @author     Wes Garland, wes@distributive.network
+ * @date       July 2023
+ */
+'use strict';
+
+const KVIN = require('../kvin');
+const s = KVIN.stringify({abc:null,def:new Date()})
+const u = KVIN.parse(s);
+
+console.log(s)
+console.log(u)
+
+if (u.abc !== null)
+  throw new Error(`Expected null, got ${u.abc}`);
