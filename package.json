@@ -1,9 +1,11 @@
 {
   "name": "kvin",
-  "version": "1.2.13",
+  "version": "1.2.14",
   "description": "Rich serialization library for JavaScript",
   "keywords": [
     "json",
+    "kvin",
+    "dcp",
     "serialization"
   ],
   "homepage": "https://github.com/wesgarland/kvin#readme",
@@ -15,7 +17,7 @@
     "url": "git+https://github.com/wesgarland/kvin.git"
   },
   "license": "MIT",
-  "author": "Wes Garland <wes@kingsds.network>",
+  "author": "Wes Garland <wes@distributive.network>",
   "main": "kvin.js",
   "files": [
     "LICENSE",
