@@ -269,7 +269,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
     return this.unprepare$ArrayBuffer16(seen, po, position)
   }
-  if (po.hasOwnProperty('ab8') || po.hasOwnProperty('isl8')) {
+  if (po.hasOwnProperty('ab8')) {
     return this.unprepare$ArrayBuffer8(seen, po, position)
   }
   if (po.hasOwnProperty('arr')) {
@@ -476,8 +476,8 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
  */
 KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, po, position) {
   let i8
-  let bytes
   let constructor;
+  let buffer;
 
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
     constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
@@ -485,23 +485,9 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, p
     constructor = this.ctors[po.ctr]
   }
 
-  if (po.hasOwnProperty('ab8')) {
-    bytes = po.ab8.length
-  } else {
-    bytes = po.len
-  }
-  i8 = new Int8Array(bytes)
-  if (po.hasOwnProperty('ab8')) {
-    for (let i = 0; i < po.ab8.length; i++) {
-      i8[i] = po.ab8.charCodeAt(i)
-    }
-  } else {
-    for (let j = 0; j < po.isl8.length; j++) {
-      for (let i = 0; i < po.isl8[j][0].length; i++) {
-        i8[po.isl8[j]['@'] + i] = po.isl8[j][0].charCodeAt(i)
-      }
-    }
-  }
+  buffer = Buffer.from(po.ab8, 'base64')
+  i8 = new Uint8Array(buffer)
+
   let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line;
   seen.push(o)
   return o;
@@ -990,31 +976,10 @@ KVIN.prototype.prepare$ArrayBuffer8 = function prepare$ArrayBuffer8 (o) {
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
 
-  const mss = this.stackLimit || _vm_fun_maxargs - 1;
   let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
-  let segments = []
-  let s
-
-  for (let i=0; i < ui8.length / mss; i++) {
-    segments.push(String.fromCharCode.apply(null, ui8.slice(i * mss, (i + 1) * mss)))
-  }
-  s = segments.join('')
-
-  let manyZeroes = '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000'
-  if (s.indexOf(manyZeroes) === -1) {
-    ret.ab8 = s
-  } else {
-    /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
-    // let re = /([^\u0000]+/g
-    let re = /([^\u0000]+(.{0,3}([^\u0000]|$))*)+/g
-    let island
-
-    ret.isl8 = []
-    ret.len = o.byteLength
-    while ((island = re.exec(s))) {
-      ret.isl8.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index})
-    }
-  }
+  let buffer = Buffer.from(ui8)
+  let s = buffer.toString('base64')
+  ret.ab8 = s
 
   return ret
 }
