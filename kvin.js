@@ -266,9 +266,6 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('mapKeys') || po.hasOwnProperty('mapVals')) {
     return this.unprepare$Map(seen, po, position)
   }
-  if (po.hasOwnProperty('ab16') || po.hasOwnProperty('isl16')) {
-    return this.unprepare$ArrayBuffer16(seen, po, position)
-  }
   if (po.hasOwnProperty('ab8')) {
     return this.unprepare$ArrayBuffer8(seen, po, position)
   }
@@ -491,63 +488,6 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, p
   let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line;
   seen.push(o)
   return o;
-}
-
-/** The ab16 (array buffer 16 bit) encoding encodes TypedArrays and related types by
- *  converting them to strings full of binary data in 16-bit words. Buffers
- *  with an odd number of bytes encode an extra byte 'eb' at the end by itself.
- *
- *  The isl16 (islands) encoding is almost the same, except that it encodes only
- *  sequences of mostly-non-zero sections of the string.
- */
- KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (seen, po, position) {
-  let i16, i8, words
-  let bytes
-  let constructor;
-
-  if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
-    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
-  } else {
-    constructor = this.ctors[po.ctr]
-  }
-
-  if (po.hasOwnProperty('ab16')) {
-    bytes = po.ab16.length * 2
-    if (po.hasOwnProperty('eb')) {
-      bytes++
-    }
-  } else {
-    bytes = po.len
-  }
-
-  words = Math.floor(bytes / 2) + (bytes % 2)
-  i16 = new Int16Array(words)
-  if (po.hasOwnProperty('ab16')) {
-    for (let i = 0; i < po.ab16.length; i++) {
-      i16[i] = po.ab16.charCodeAt(i)
-    }
-  } else {
-    for (let j = 0; j < po.isl16.length; j++) {
-      for (let i = 0; i < po.isl16[j][0].length; i++) {
-        i16[po.isl16[j]['@'] + i] = po.isl16[j][0].charCodeAt(i)
-      }
-    }
-  }
-  i8 = new Int8Array(i16.buffer, i16.byteOffset, bytes)
-  if (po.hasOwnProperty('eb')) {
-    i8[i8.byteLength - 1] = po.eb.charCodeAt(0)
-  }
-
-  if (!littleEndian) {
-    for (let i = 0; i < i8.length; i += 2) {
-      i8[(i * 2) + 0] = i8[(i * 2) + 0] ^ i8[(i * 2) + 1]
-      i8[(i * 2) + 1] = i8[(i * 2) + 1] ^ i8[(i * 2) + 0]
-      i8[(i * 2) + 0] = i8[(i * 2) + 0] ^ i8[(i * 2) + 1]
-    }
-  }
-  let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
-  seen.push(o)
-  return o
 }
 
 /* Primitives and primitive-like objects do not have any special
@@ -910,62 +850,6 @@ function notUnicode(s) {
 
   return false
 }
-/** Prepare an ArrayBuffer into UCS-2, returning null when we cannot guarantee
- *  that the UCS-2 is also composed of valid UTF-16 code points
- *
- *  @see unprepare$ArrayBuffer16
- */
-KVIN.prototype.prepare$ArrayBuffer16 = function prepare$ArrayBuffer16 (o) {
-  let ret = { ctr: this.ctors.indexOf(o.constructor) }
-  let nWords = Math.floor(o.byteLength / 2)
-  let s = ''
-
-  if (ret.ctr === -1)
-    ret.ctr = o.constructor.name
-
-  if (littleEndian) {
-    let ui16 = new Uint16Array(o.buffer, o.byteOffset, nWords)
-    for (let i = 0; i < nWords; i++) {
-      s += String.fromCharCode(ui16[i])
-    }
-  } else {
-    let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
-    for (let i = 0; i < nWords; i++) {
-      s += String.fromCharCode((ui8[0 + (2 * i)] << 8) + (ui8[1 + (2 * i)]))
-    }
-  }
-
-  let manyZeroes = '\u0000\u0000\u0000\u0000'
-  if (s.indexOf(manyZeroes) === -1) {
-    ret.ab16 = s
-  } else {
-    /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
-    // let re = /([^\u0000]+/g
-    let re = /([^\u0000]+(.{0,3}([^\u0000]|$))*)+/g
-    let island
-
-    ret.isl16 = []
-    ret.len = o.byteLength
-    while ((island = re.exec(s))) {
-      ret.isl16.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index})
-    }
-  }
-  if ((2 * nWords) !== o.byteLength) {
-    let ui8 = new Uint8Array(o.buffer, o.byteOffset + o.byteLength - 1, 1)
-    ret.eb = ui8[0]
-  }
-
-  if (ret.ab16 && notUnicode(ret.ab16)) {
-    return null
-  } else  if (ret.isl16) {
-    for (let i = 0; i < ret.isl16.length; i++) {
-      if (notUnicode(ret.isl16[i])) {
-        return null
-      }
-    }
-  }
-  return ret
-}
 
 /** Encode an ArrayBuffer (TypedArray) into a string composed solely of Latin-1 characters.
  *  Strings with many zeroes will be represented as sparse-string objects.
@@ -995,7 +879,6 @@ KVIN.prototype.prepare$ArrayBuffer8 = function prepare$ArrayBuffer8 (o) {
 KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   let naive, naiveJSONLen;
   let ab8, ab8JSONLen;
-  let ab16, ab16JSONLen;
 
   if (this.tune === "speed" || this.tune === "size" || (o.byteLength < this.typedArrayPackThreshold)) {
     naive = { ctr: this.ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
@@ -1005,22 +888,9 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   }
 
   naiveJSONLen = naive ? JSON.stringify(naive).length : Infinity
-
   ab8 = this.prepare$ArrayBuffer8(o)
-  if (this.tune !== "size") {
-    if (naive && naive.length < ab8.length) {
-      return naive
-    }
-    return ab8
-  }
-
-  ab16 = this.prepare$ArrayBuffer16(o)
   ab8JSONLen = JSON.stringify(ab8).length;
-  ab16JSONLen = ab16 ? JSON.stringify(ab16).length : Infinity
 
-  if (ab16JSONLen < ab8JSONLen && ab16JSONLen < naiveJSONLen) {
-    return ab16
-  }
   if (naiveJSONLen < ab8JSONLen) {
     return naive
   }
