@@ -1,6 +1,6 @@
 {
   "name": "kvin",
-  "version": "1.2.14",
+  "version": "1.2.15",
   "description": "Rich serialization library for JavaScript",
   "keywords": [
     "json",
@@ -33,6 +33,6 @@
     "prepublishOnly": "npm-hooks/prepublish"
   },
   "devDependencies": {
-    "peter": "^2.3.9"
+    "peter": "^2.4.7"
   }
 }
