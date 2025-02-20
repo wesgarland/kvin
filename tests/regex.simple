@@ -1,0 +1,26 @@
+#! /usr/bin/env node
+/** 
+ * @file     regex.simple
+ *           Smoke test for regex serialization. Initial Test case provided by saiballo in PR19.
+ * @author   Wes Garland, wes@distributive.network
+ * @date     Feb 2025
+ */
+const kvin = require('../kvin');
+const obj = { "rule": "customRegexp", "value": /^[\+]?[(]?[0-9]{2,}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/i };
+const ser = kvin.serialize(obj);
+const re1 = obj.value;
+const re2 = kvin.deserialize(ser).value;
+
+console.log(re1);
+console.log(re2);
+
+if (re2.constructor !== re1.constructor)
+  throw new Error('deserialized regex has constructor ' + re2.constructor?.name);
+if (re1.flags !== re2.flags)
+  throw new Error('regex flags are incorrect');
+if (re1.source !== re2.source)
+  throw new Error('regex source is incorrect');
+if (String(re1) !== String(re2))
+  throw new Error('stringified regexes do not match');
+
+console.log('regexes match');

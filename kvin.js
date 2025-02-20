@@ -1064,7 +1064,10 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
 }
 
 KVIN.prototype.prepare$RegExp = function prepare$RegExp (o) {
-  return { ctr: this.ctors.indexOf(o.constructor), arg: o.toString().slice(1, -1) }
+  return {
+    ctr: this.ctors.indexOf(o.constructor),
+    args: [ o.source, o.flags ],
+  };
 }
 
 KVIN.prototype.prepare$boxedPrimitive = function prepare$boxedPrimitive (o) {
