@@ -28,8 +28,7 @@
   ],
   "scripts": {
     "postpublish": "npm-hooks/postpublish",
-    "test": "peter tests",
-    "vtest": "peter -v tests",
+    "test": "peter -J kvin-junit.xml tests",
     "prepublishOnly": "npm-hooks/prepublish"
   },
   "devDependencies": {
