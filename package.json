@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "postpublish": "npm-hooks/postpublish",
-    "test": "peter -J kvin-junit.xml tests",
+    "test": "peter -J kvin-junit.xml tests; node_modules/peter/ci/check-for-failures kvin-junit.xml",
     "prepublishOnly": "npm-hooks/prepublish"
   },
   "devDependencies": {

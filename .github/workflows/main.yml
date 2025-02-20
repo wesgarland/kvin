@@ -53,4 +53,3 @@ jobs:
 
       - name: Test
         run: npm test
-        run: node_modules/peter/ci/check-for-failures kvin-junit.xml
