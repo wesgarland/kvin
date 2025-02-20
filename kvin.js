@@ -200,6 +200,7 @@ KVIN.prototype.ctors = [
   Promise,
   typeof URL !== 'undefined' ? URL : undefined, /* not part of ES => feature-test */
   Date,
+  Set,
 ];
 
 KVIN.prototype.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
@@ -278,6 +279,8 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('ctr')) {
     return this.unprepare$object(seen, po, position)
   }
+  if (po.hasOwnProperty('set'))
+    return this.unprepare$Set(seen, po, position);
   if (po.hasOwnProperty('json')) {
     return JSON.parse(po.json)
   }
@@ -677,6 +680,8 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (o.constructor === RegExp) {
     return this.prepare$RegExp(o)
   }
+  if (o.constructor === Set)
+    return this.prepare$Set(seen, o, where);
 
   if (o instanceof Promise || o instanceof this.standardObjects.Promise) {
     /**
@@ -1068,6 +1073,24 @@ KVIN.prototype.prepare$RegExp = function prepare$RegExp (o) {
     ctr: this.ctors.indexOf(o.constructor),
     args: [ o.source, o.flags ],
   };
+}
+
+/**
+ * Prepare a Set. Effectively wraps prepare$Array .
+ *  @param   seen   The current seen list for this marshal - things pointers point to
+ *  @param   set    The set we are preparing
+ *  @param   where  Human description of where we are in the object, for debugging purposes
+ */
+KVIN.prototype.prepare$Set = function prepare$Set (seen, set, where) {
+  const elements = this.prepare$Array(seen, Array.from(set.values()), where);
+  return {
+    set: elements,
+  };
+}
+
+KVIN.prototype.unprepare$Set = function prepare$Set (seen, po, position) {
+  const arr = this.unprepare$Array(seen, po.set, position);
+  return new Set(arr);
 }
 
 KVIN.prototype.prepare$boxedPrimitive = function prepare$boxedPrimitive (o) {

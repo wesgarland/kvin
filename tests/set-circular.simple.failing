@@ -1,0 +1,56 @@
+#! /usr/bin/env node
+/** 
+ * @file     set-circular.simple
+ *           Test which tests sets which contain themselves. Probably fails because circular Arrays
+ *           are not handled correctly /wg feb 2025
+ * @author   Wes Garland, wes@distributive.network
+ * @date     Feb 2025
+ */
+const kvin = require('../kvin');
+const set1 = new Set([1]);
+set1.add(set1);
+const ser = kvin.serialize(set1);
+console.log(ser);
+const set2 = kvin.deserialize(ser);
+
+function eqSet(setA, setB, label)
+{
+  if (setA.size !== setB.size)
+    throw new Error(`${label} has wrong size; should be ${setA.size} but is ${setB.size}`);
+  eqArr(Array.from(setA.values()), Array.from(setB.values()), label);
+}
+
+function eqArr(arrA, arrB, label)
+{
+  for (let i=0; i < arrA.length; i++)
+  {
+    const element = arrA[i];
+    console.log('check', label, arrB[i], arrA[i]);
+
+    if (arrA[i].constructor !== arrB[i].constructor)
+      throw new Error(`constructor mismatch; ${arrA[i].constructor?.name} != ${arrB[i].constructor?.name}`);
+    if (element.constructor === Set)
+      eqSet(arrA[i], arrB[i], `${label}.${i}`);
+    else if (element.constructor === Array)
+      eqArr(arrA[i], arrB[i], `${label}.${i}`);
+    else if (element.constructor === Object)
+      eqObj(arrA[i], arrB[i], `${label}.${i}`);
+    else if (arrB[i] !== arrA[i])
+    {
+      console.log('mismatch', arrB[i], arrA[i]);
+      throw new Error(`arrB element mismatch ${label} #${i}`);
+    }
+  }
+}
+
+function eqObj(objA, objB, label)
+{
+  eqArr(Object.entries(objA), Object.entries(objB), label);
+}
+
+eqSet(set1, set2, 'set');
+
+if (kvin.serialize(set1) !== kvin.serialize(set2))
+  throw new Error('serialization mismatch');
+
+console.log('pass');
