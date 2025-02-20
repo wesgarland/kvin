@@ -1,4 +1,5 @@
 # `KVIN` - A rich serialization library for JavaScript.
+![CI status](https://github.com/wesgarland/kvin/actions/workflows/main.yml/badge.svg?branch=main)
 
 ## TLDR;
 ```javascript
