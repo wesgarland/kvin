@@ -1,0 +1,26 @@
+#! /usr/bin/env node
+/**
+ * @file     isl8-stack.simple
+ *           Test to test a pathological condition on RegExp lookahead(?) that allows v8 to blow the
+ *           stack when using RE* instead of RE{0,maxReRepeat}
+ * @author   Wes Garland
+ * @date     Feb 2025
+ */
+'use strict';
+
+const fs = require('fs');
+const KVIN=require('../kvin');
+const buf1 = fs.readFileSync("../test-resources/pythonmonkey-1.1.0-cp38-cp38-manylinux_2_31_x86_64.whl");
+const ser=KVIN.serialize(buf1);
+const buf2 = KVIN.deserialize(ser);
+const m = KVIN.marshal(buf2);
+
+console.log('encoded with', m.what.isl8?.length, 'segments');
+
+for (let i=0; i < buf1.byteLength; i++)
+{
+  if (buf1[i] !== buf2[i])
+    throw new Error(`mismatch at index ${i}; ${buf1[i]} != ${buf2[i]}`);
+}
+
+console.log('pass');

@@ -161,7 +161,9 @@ KVIN.prototype.scanArrayThreshold = 8
 /** Maxmimum number of arguments we can pass to a function in this engine.
  * @todo this needs to be detected at startup based on environment
  */
-const _vm_fun_maxargs = 30000;
+KVIN.prototype.maxFunArgs = 30000;
+/** Maximumum number of times we will repeat a re-match instead of unbounded */
+KVIN.prototype.maxReRepeat = 5000;
 
 const littleEndian = (function () {
   let ui16 = new Uint16Array(1)
@@ -170,10 +172,8 @@ const littleEndian = (function () {
   ui16[0] = 0xffef
   ui8 = new Uint8Array(ui16.buffer, ui16.byteOffset, ui16.byteLength)
 
-  if (ui8[0] === 0x0ff) {
-    console.error('KVIN: Detected big-endian platform')
-    return false
-  }
+  if (ui8[0] === 0x0ff)
+    throw new Error('KVIN: Detected big-endian platform');
 
   return true
 })()
@@ -308,11 +308,13 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
   let o
   let constructor;
 
-  function construct(constructor, args) {
-    function fun() {
-      return constructor.apply(this, args);
+  function construct(thisCtor, args)
+  {
+    function fun()
+    {
+      return thisCtor.apply(this, args);
     }
-    fun.prototype = constructor.prototype;
+    fun.prototype = thisCtor.prototype;
     return new fun();
   }
   
@@ -441,7 +443,7 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
       let island = po.isl[prop]
       let els = Array.isArray(island.arr) ? island.arr : this.unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
 
-      if (els.length - 3 <= this.stackLimit || _vm_fun_maxargs) {
+      if (els.length - 3 <= this.stackLimit || this.maxFunArgs) {
         if (els.length && (a.length < island['@'] + els.length)) {
           a.length = island['@'] + els.length
         }
@@ -505,7 +507,16 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, p
       }
     }
   }
-  let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line;
+  let o;
+
+  if (constructor !== globalThis.Buffer)
+    o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line;
+  else
+  {
+    /* work around nodejs deprecation warning */
+    o = Buffer.from(i8.buffer, i8.byteOffset);
+  }
+
   seen.push(o)
   return o;
 }
@@ -697,7 +708,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   }
 
   if (typeof o.constructor === 'undefined') {
-    console.warn('KVIN Warning: ' + where + ' is missing .constructor -- skipping')
+    console && console.warn('KVIN Warning: ' + where + ' is missing .constructor -- skipping')
     return prepare$undefined(o)
   }
 
@@ -995,7 +1006,7 @@ KVIN.prototype.prepare$ArrayBuffer8 = function prepare$ArrayBuffer8 (o) {
   if (ret.ctr === -1)
     ret.ctr = o.constructor.name
 
-  const mss = this.stackLimit || _vm_fun_maxargs - 1;
+  const mss = this.stackLimit || this.maxFunArgs - 1;
   let ui8 = new Uint8Array(o.buffer, o.byteOffset, o.byteLength)
   let segments = []
   let s
@@ -1006,18 +1017,28 @@ KVIN.prototype.prepare$ArrayBuffer8 = function prepare$ArrayBuffer8 (o) {
   s = segments.join('')
 
   let manyZeroes = '\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000'
-  if (s.indexOf(manyZeroes) === -1) {
-    ret.ab8 = s
-  } else {
-    /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
-    // let re = /([^\u0000]+/g
-    let re = /([^\u0000]+(.{0,3}([^\u0000]|$))*)+/g
-    let island
+  if (s.indexOf(manyZeroes) === -1)
+    ret.ab8 = s;
+  else
+  {
+    try
+    {
+      /* String looks zero-busy: represent via islands of mostly non-zero (sparse string). */
+      const re = new RegExp(`([^\u0000]+(.{0,3}([^\u0000]|$)){0,${this.maxReRepeat}})+`, 'g');
+      const isl8 = [];
+      let island;
+      while ((island = re.exec(s)))
+        isl8.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index});
 
-    ret.isl8 = []
-    ret.len = o.byteLength
-    while ((island = re.exec(s))) {
-      ret.isl8.push({0: island[0].replace(/\u0000*$/, ''), '@': island.index})
+      ret.isl8 = isl8;
+      ret.len = o.byteLength;
+    }
+    catch(error)
+    {
+      /* fallback to ab8 encoding if the RegExp exceeds the call stack size */
+      if (error.name !== 'RangeError')
+        throw error;
+      ret.ab8 = s;
     }
   }
 
