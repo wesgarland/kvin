@@ -1,0 +1,19 @@
+#! /usr/bin/env node
+/**
+ * @file	symbol.simple
+ *              Verify symbol serialization functions
+ * @author	Ryan Saweczko, ryansaweczko@distributive.network
+ * @date	Mar 2025
+ */
+'use strict';
+
+const KVIN = require('..');
+const assert = require('assert');
+
+const symbol = Symbol('stuff');
+const obj = { a: symbol, b: symbol };
+
+const final = KVIN.unmarshal(KVIN.marshal(obj));
+assert(final.a === final.b);
+assert(typeof final.a === 'symbol');
+assert(final.a.description === 'stuff');
