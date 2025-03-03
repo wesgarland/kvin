@@ -22,6 +22,7 @@ data types, including:
 * URL
 * Error
 * BigInt
+* Symbol
 * Regular Expressions
 * Instances of user-defined classes
 * Boxed primitives (excluding Symbol)
@@ -90,6 +91,8 @@ Typed Arrays are encoded by encoding the direct underlying bits into 8-bit chara
 is vestigial support for a more efficient UTF-16 encoding, however we have found practical problems related to networking stacks
 rewriting unpaired surrogates as "invalid" codepoints.  This may be revisited in the future, as it should shrink eventual payload
 size.
+
+Symbols are encoded so references to the same symbol within the marshalled object will be decoded to the same symbol
 
 ### Compression
 We recommend transmitting all data over the network compressed at the network layer (e.g. content-transfer-encoding: gzip). The
