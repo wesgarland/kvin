@@ -287,9 +287,8 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('undefined')) {
     return undefined
   }
-  if (po.hasOwnProperty('symbol')) {
+  if (po.hasOwnProperty('symbol'))
     return unprepare$symbol(seen, po);
-  }
 
   if (Object.hasOwnProperty.call(po, 'resolve')) {
     // Unprepare a Promise by assuming po.resolve is a marshalled value.
@@ -406,7 +405,8 @@ KVIN.prototype.unprepare$Map = function unprepare$Map (seen, po, position) {
   return m;
 }
 
-function unprepare$symbol(seen, po) {
+function unprepare$symbol(seen, po)
+{
   const symbol = Symbol(po.symbol);
   seen.push(symbol);
   return symbol;
@@ -669,9 +669,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (typeof o === 'bigint') {
     return prepare$bigint(o)
   }
-  if (typeof o === 'symbol') {
+  if (typeof o === 'symbol')
     return prepare$symbol(o, seen);
-  }
+
   if (this.isPrimitiveLike(o, seen)) {
     if (!Array.isArray(o) || o.length < this.scanArrayThreshold)
       return prepare$primitive(o, where)
@@ -1170,8 +1170,7 @@ function prepare$symbol(o, seen)
   else
   {
     seen.push(o);
-    // Regex to extract key from "Symbol(key)" string
-    return { symbol: o.toString().match(/Symbol\((.*)\)/)[1]};
+    return { symbol: o.description };
   }
 }
 
