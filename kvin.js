@@ -6,7 +6,7 @@
  *                                      - Sparse arrays
  *                                      - Arrays with enumerable properties
  *                                      - Object graphs with cycles
- *                                      - Boxed primitives (excluding Symbol)
+ *                                      - Boxed primitives
  *                                      - Functions (including enumerable properties, global scope)
  *                                      - Regular Expressions
  *                                      - undefined
@@ -287,6 +287,9 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('undefined')) {
     return undefined
   }
+  if (po.hasOwnProperty('symbol')) {
+    return unprepare$symbol(seen, po);
+  }
 
   if (Object.hasOwnProperty.call(po, 'resolve')) {
     // Unprepare a Promise by assuming po.resolve is a marshalled value.
@@ -401,6 +404,12 @@ KVIN.prototype.unprepare$Map = function unprepare$Map (seen, po, position) {
   }
 
   return m;
+}
+
+function unprepare$symbol(seen, po) {
+  const symbol = Symbol(po.symbol);
+  seen.push(symbol);
+  return symbol;
 }
 
 function unprepare$bigint(arg) {
@@ -660,6 +669,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (typeof o === 'bigint') {
     return prepare$bigint(o)
   }
+  if (typeof o === 'symbol') {
+    return prepare$symbol(o, seen);
+  }
   if (this.isPrimitiveLike(o, seen)) {
     if (!Array.isArray(o) || o.length < this.scanArrayThreshold)
       return prepare$primitive(o, where)
@@ -786,6 +798,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
       case 'string':
         po[prop] = prepare$primitive(o[prop], where + '.' + prop)
         break
+      case 'symbol':
+        po[prop] = prepare$symbol(o[prop], seen);
+        break;
       case 'undefined':
         po[prop] = prepare$undefined(o[prop])
         break
@@ -1145,6 +1160,19 @@ function prepare$primitive (primitive, where) {
 
 function prepare$undefined (o) {
   return { undefined: true }
+}
+
+function prepare$symbol(o, seen)
+{
+  var i;
+  if ((i = seen.indexOf(o)) !== -1)
+    return { seen: i };
+  else
+  {
+    seen.push(o);
+    // Regex to extract key from "Symbol(key)" string
+    return { symbol: o.toString().match(/Symbol\((.*)\)/)[1]};
+  }
 }
 
 /** Prepare a value for serialization
