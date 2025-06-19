@@ -27,7 +27,7 @@
     "browser-tests"
   ],
   "scripts": {
-    "postpublish": "npm-hooks/postpublish",
+    "postpublish": "git tag v$npm_package_version && git push origin tag v$npm_package_version",
     "test": "peter -J kvin-junit.xml tests; node_modules/peter/ci/check-for-failures kvin-junit.xml",
     "prepublishOnly": "npm-hooks/prepublish"
   },
