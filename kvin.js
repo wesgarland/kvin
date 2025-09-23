@@ -724,27 +724,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     return prepare$undefined(o)
   }
 
-  ret = { ctr: this.ctors.indexOf(o.constructor), ps: po }
-  if (ret.ctr === -1) {
-    /**
-     * If the constructor is `Object` from another context, the indexOf check
-     * would fail. So if the name of `o`'s constructor matches one of the valid
-     * constructors, use the index from the mapped array to get the proper
-     * constructor index.
-     */
-    const constructorNames = this.ctors.map((ctor) => ctor.name);
-    const ctrIndex = constructorNames.indexOf(o.constructor.name);
-    if (ctrIndex !== -1) {
-      ret.ctr = ctrIndex;
-      /**
-       * Fix the `o`'s constructor to match its constructor in the current
-       * context so that later equality/instanceof checks don't fail.
-       */
-      o.constructor = this.ctors[ctrIndex];
-    } else {
-      ret.ctr = o.constructor.name || this.ctors.indexOf(Object)
-    }
-  }
+  ret = { ctr: this.ctors.indexOf(o.constructor), ps: po };
+  if (ret.ctr === -1)
+    ret.ctr = o.constructor.name || this.ctors.indexOf(this.standardObjects.Object);
 
   if (typeof o === 'function') {
     ret.fnName = o.name
