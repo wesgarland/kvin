@@ -294,9 +294,9 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
    * synthesized during unmarshal.
    */
   if (po.hasOwnProperty('resolve'))
-    return Promise.resolve(unprepare(seen, po.resolve, position));
+    return Promise.resolve(this.unprepare(seen, po.resolve, position));
   if (po.hasOwnProperty('reject'))
-    return Promise.reject(unprepare(seen, po.reject, position));
+    return Promise.reject(this.unprepare(seen, po.reject, position));
 
   if (po.hasOwnProperty('seen')) {
     if (!seen.hasOwnProperty(po.seen)) {
