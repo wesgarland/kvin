@@ -11,12 +11,11 @@ const assert = require('assert');
 const KVIN = require('../kvin');
 
 var original = Promise.resolve("hello world");
+console.log('original:', original);
 var str = await KVIN.stringifyAsync(original);
+console.log('serialized:', str);
 var copy = KVIN.parse(str);
+console.log('deserialized:', copy);
 
 assert(copy instanceof Promise);
 assert(await copy === "hello world");
-
-
-
-

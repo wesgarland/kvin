@@ -48,7 +48,7 @@
   var module;
   let moduleSystemType;
   let realModule = module;
-  
+
   if (typeof __webpack_require__ !== 'undefined')
     moduleSystemType = 'webpack';
   else if (typeof module !== 'undefined' && typeof module.declare !== 'undefined')
@@ -85,12 +85,12 @@
     };
   }
 /* Now initialize the module by invoking module.declare per CommonJS Modules/2.0-draft8 */
-  
+
 /* eslint-disable indent */ module.declare([], function (require, exports, module) {
 
-/** 
+/**
  * @constructor to create an alternate KVIN context. This allows us to recogonize instance of
- *              the standard classes from a different JS context or have different tuning parameters.   
+ *              the standard classes from a different JS context or have different tuning parameters.
  * @param ctors list or object of standard constructors
  */
 function KVIN(ctors)
@@ -104,7 +104,7 @@ function KVIN(ctors)
   }
 
   this.ctors = [].concat(KVIN.prototype.ctors);
-  
+
   if (!ctors)
     return;
 
@@ -128,7 +128,7 @@ function KVIN(ctors)
     {
       for (let i=0; i < this.ctors.length; i++)
       {
-        let [ name, ctor ] = entry; 
+        let [ name, ctor ] = entry;
         if (!ctor)
           continue;
         if (this.ctors[i].name === name)
@@ -290,12 +290,13 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('symbol'))
     return unprepare$symbol(seen, po);
 
-  if (Object.hasOwnProperty.call(po, 'resolve')) {
-    // Unprepare a Promise by assuming po.resolve is a marshalled value.
-    const promise = Promise.resolve(this.unmarshal(po.resolve));
-    seen.push(promise);
-    return promise;
-  }
+  /* Promise resolutions/rejections are prepared after settling when using marshalAsync, then
+   * synthesized during unmarshal.
+   */
+  if (po.hasOwnProperty('resolve'))
+    return Promise.resolve(unprepare(seen, po.resolve, position));
+  if (po.hasOwnProperty('reject'))
+    return Promise.reject(unprepare(seen, po.reject, position));
 
   if (po.hasOwnProperty('seen')) {
     if (!seen.hasOwnProperty(po.seen)) {
@@ -319,11 +320,11 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
     fun.prototype = thisCtor.prototype;
     return new fun();
   }
-  
+
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
     if (this.userCtors.hasOwnProperty(po.ctr))
       constructor = this.userCtors[po.ctr];
-    else 
+    else
       constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
   } else {
     constructor = this.ctors[po.ctr]
@@ -342,7 +343,7 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
     delete o.lineNumber;
     delete o.fileName;
   }
-  
+
   seen.push(o)
 
   if (po.hasOwnProperty('ps')) {
@@ -381,7 +382,7 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
 }
 
 KVIN.prototype.unprepare$Map = function unprepare$Map (seen, po, position) {
-  
+
   let m = new Map();
 
   seen.push(m)
@@ -419,7 +420,7 @@ function unprepare$bigint(arg) {
 function unprepare$number(arg) {
   return parseFloat(arg);
 }
-  
+
 /**
  * arr:[] - Array of primitives of prepared objects
  * lst:N - repeat last element N times
@@ -601,7 +602,7 @@ KVIN.prototype.isPrimitiveLike = function isPrimitiveLike (o, seen) {
 
   if (typeof o !== 'object')
     return false;
- 
+
   if (o.constructor === this.standardObjects.Object && Object.keys(o).length === 0)
     return true;
 
@@ -622,7 +623,7 @@ KVIN.prototype.isPrimitiveLike = function isPrimitiveLike (o, seen) {
     if (!o.hasOwnProperty(prop))
       return false;
     if (seen.indexOf(o[prop]) !== -1)
-      return false; 
+      return false;
     if (!this.isPrimitiveLike(o[prop], seen))
       return false;
   }
@@ -631,8 +632,8 @@ KVIN.prototype.isPrimitiveLike = function isPrimitiveLike (o, seen) {
 }
 
 /**
- * Serialize an instance of Error, preserving standard-ish non-enumerable properties 
- */     
+ * Serialize an instance of Error, preserving standard-ish non-enumerable properties
+ */
 function prepare$Error(o)
 {
   let ret = {
@@ -650,7 +651,7 @@ function prepare$Error(o)
 
   return ret;
 }
-  
+
 /** Take an arbitrary object and turn it into a 'prepared object'.
  *  A prepared object can always be represented with JSON.
  *
@@ -706,13 +707,8 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   if (o.constructor === Set)
     return this.prepare$Set(seen, o, where);
 
-  if (o instanceof Promise || o instanceof this.standardObjects.Promise) {
-    /**
-     * Let the caller replace the `resolve` property with its marshalled
-     * resolved value.
-     */
-    return { resolve: o };
-  }
+  if (o instanceof Promise || o instanceof this.standardObjects.Promise)
+    return this.prepare$Promise(seen, o, where);
 
   if (o instanceof Error || o instanceof this.standardObjects.Error) {
     /* special-case Error to get non-enumerable properties */
@@ -1111,6 +1107,18 @@ KVIN.prototype.unprepare$Set = function prepare$Set (seen, po, position) {
   return new Set(arr);
 }
 
+KVIN.prototype.prepare$Promise = function prepare$Promise(seen, promise, where)
+{
+  if (!seen.promises)
+    throw new Error(`synchronous invocation cannot marshal Promise ${where}`);
+  const ret = { /* placeholder */ };
+  promise
+    .catch(error => ret.reject  = this.prepare(seen, error, where + '$reject'))
+    .then (value => ret.resolve = this.prepare(seen, value, where + '$resolve'));
+  seen.promises.push(promise);
+  return ret;
+}
+
 KVIN.prototype.prepare$boxedPrimitive = function prepare$boxedPrimitive (o) {
   return { ctr: this.ctors.indexOf(o.constructor), arg: o.toString() }
 }
@@ -1128,7 +1136,7 @@ function prepare$number (n) {
 
   return n;
 }
-    
+
 /* Store primitives and sort-of-primitives (like object literals) directly */
 function prepare$primitive (primitive, where) {
   switch (typeof po) {
@@ -1158,10 +1166,11 @@ function prepare$symbol(o, seen)
 
 /** Prepare a value for serialization
  *  @param      what any (supported) js value
+ *  @param {Array}    __seen     list of objects and functions that were seen during traversal.
  *  @returns    an object which can be serialized with json
  */
-KVIN.prototype.marshal = function serialize$$marshal (what) {
-  return {_serializeVerId: this.serializeVerId, what: this.prepare([], what, 'top')}
+KVIN.prototype.marshal = function serialize$$marshal (what, __seen = []) {
+  return {_serializeVerId: this.serializeVerId, what: this.prepare(__seen, what, 'top')}
 }
 
 /**
@@ -1173,64 +1182,13 @@ KVIN.prototype.marshal = function serialize$$marshal (what) {
  * @returns {Promise<object>} An object which can be serialized with
  * `JSON.stringify`
  */
-KVIN.prototype.marshalAsync = async function serialize$$marshalAsync(value, isRecursing = false) {
-  /**
-   * First, have marshal memoize returned an object graph with any instances of
-   * Promise found during the marshal operation with { resolve: X }, where X is
-   * an instance of Promise.
-   *
-   * If we're recursing, we're traversing a marshaled object and shouldn't
-   * redundantly marshal a nested part of it.
-   */
-  let marshalledObject;
-  if (!isRecursing) {
-    marshalledObject = this.marshal(value);
-  } else {
-    marshalledObject = value;
-  }
+KVIN.prototype.marshalAsync = async function serialize$$marshalAsync(value)
+{
+  const seen = [];
+  seen.promises = [];
 
-  /**
-   * Then, traverse the marshalled object, looking for these Promise memos
-   * (resolve property). await the promise (X above) and replace it in the
-   * marshaled object with the marshaled representation of the resolve value.
-   */
-  for (const key in marshalledObject) {
-    if (!Object.hasOwnProperty.call(marshalledObject, key)) {
-      continue;
-    }
-
-    switch (typeof marshalledObject[key]) {
-      case 'object':
-        if (marshalledObject[key] === null) {
-          continue;
-        }
-
-        if (
-          typeof marshalledObject[key].resolve !== 'undefined' &&
-          marshalledObject[key].resolve instanceof Promise
-        ) {
-          marshalledObject[key].resolve = await this.marshalAsync(
-            await marshalledObject[key].resolve,
-          );
-        }
-
-        /**
-         * Recursively traverse the marshalled object
-         *
-         * Operating on the marshalled object graph means we know for certain we
-         * are working on a directed acyclic graph (DAG); prepares's "seen"
-         * array argument expresses cycles separately.
-         */
-        marshalledObject[key] = await this.marshalAsync(
-          marshalledObject[key],
-          true,
-        );
-        break;
-      default:
-        break;
-    }
-  }
-
+  const marshalledObject = this.marshal(value, seen);
+  await Promise.allSettled(seen.promises);
   return marshalledObject;
 }
 
@@ -1243,12 +1201,7 @@ KVIN.prototype.unmarshal = function serialize$$unmarshal (obj) {
     throw new Error(`Cannot unmarshal type ${typeof obj} or null.`)
   }
   if (!obj.hasOwnProperty('_serializeVerId')) {
-    try {
-      let str = JSON.stringify(obj)
-      throw new Error('Invalid serialization format (' + str.slice(0, 20) + '\u22ef' + str.slice(-20) + ')')
-    } catch (e) {
-      throw new Error('Invalid serialization format')
-    }
+    throw new Error('Invalid serialization format (not KVIN)');
   }
   switch (obj._serializeVerId) {
     case 'v4':
@@ -1293,9 +1246,9 @@ KVIN.prototype.deserialize = function deserialize (str) {
 }
 
 KVIN.prototype.serializeVerId = 'v8'
-  
+
 /* JSON-like interface */
-KVIN.prototype.parse = KVIN.prototype.deserialize;  
+KVIN.prototype.parse = KVIN.prototype.deserialize;
 KVIN.prototype.stringify = KVIN.prototype.serialize;
 KVIN.prototype.stringifyAsync = KVIN.prototype.serializeAsync;
 
