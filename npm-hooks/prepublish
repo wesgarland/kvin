@@ -33,7 +33,7 @@ if [ "$?" != "0" ]; then
   exit 1
 fi
 
-git ls-files --error-unmatch `find src -type f; find tests -type f` >/dev/null
+git ls-files --error-unmatch `(find . -maxdepth 1 -name \*.js -type f; find tests -type f) | sort -u` >/dev/null
 if [ "$?" != "0" ]; then
   echo
   echo -e "${yellow}pre-publish: abort due to files in package which aren't in repo${normal}" >/dev/stderr
