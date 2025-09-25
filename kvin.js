@@ -304,6 +304,14 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
     }
     return seen[po.seen]
   }
+
+  /* KVIN 1.2.18 and older can bury marshaled objects inside marshaled objects. */
+  if (po.hasOwnProperty('_serializeVerId'))
+  {
+    seen.push(po);
+    return this.unmarshal(po);
+  }
+
   throw new TypeError('Invalid preparation formula at ' + position)
 }
 
@@ -1209,6 +1217,7 @@ KVIN.prototype.unmarshal = function serialize$$unmarshal (obj) {
     case 'v6':
     case 'v7':
     case 'v8':
+    case 'v9':
       break
     default:
       throw new Error(`Cannot unmarshal ${obj._serializeVerId} objects - please update Kvin`)
@@ -1245,7 +1254,7 @@ KVIN.prototype.deserialize = function deserialize (str) {
   return this.unmarshal(JSON.parse(str))
 }
 
-KVIN.prototype.serializeVerId = 'v8'
+KVIN.prototype.serializeVerId = 'v9';
 
 /* JSON-like interface */
 KVIN.prototype.parse = KVIN.prototype.deserialize;
