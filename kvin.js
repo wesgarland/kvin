@@ -1159,7 +1159,9 @@ KVIN.prototype.prepare$Promise = function prepare$Promise(seen, promise, where)
 }
 
 KVIN.prototype.prepare$boxedPrimitive = function prepare$boxedPrimitive (o) {
-  return { ctr: this.ctors.indexOf(o.constructor), arg: o.toString() }
+  /* new Boolean('false') is true; Numbers stay strings so that NaN and Infinity survive JSON */
+  const arg = o.constructor === Boolean ? o.valueOf() : o.toString();
+  return { ctr: this.ctors.indexOf(o.constructor), arg }
 }
 
 function prepare$bigint (n) {
