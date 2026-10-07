@@ -454,12 +454,15 @@ function unprepare$number(arg) {
  * arr:[] - Array of primitives of prepared objects
  * lst:N - repeat last element N times
  * ps:[] - property list
+ *
+ * @param seenAs  the value to record in the seen list in place of the array, for containers
+ *                which are prepared as arrays
  */
-KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
+KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position, seenAs) {
   let a = []
   let last
 
-  seen.push(a)
+  seen.push(seenAs || a)
 
   for (let i = 0; i < po.arr.length; i++) {
     if (typeof po.arr[i] === 'object') {
@@ -1141,9 +1144,11 @@ KVIN.prototype.prepare$Set = function prepare$Set (seen, set, where) {
   };
 }
 
-KVIN.prototype.unprepare$Set = function prepare$Set (seen, po, position) {
-  const arr = this.unprepare$Array(seen, po.set, position);
-  return new Set(arr);
+KVIN.prototype.unprepare$Set = function unprepare$Set (seen, po, position) {
+  const set = new Set();
+  for (let element of this.unprepare$Array(seen, po.set, position, set))
+    set.add(element);
+  return set;
 }
 
 KVIN.prototype.prepare$Promise = function prepare$Promise(seen, promise, where)

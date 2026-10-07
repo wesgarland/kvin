@@ -1,8 +1,7 @@
 #! /usr/bin/env node
 /** 
  * @file     set-circular.simple
- *           Test which tests sets which contain themselves. Probably fails because circular Arrays
- *           are not handled correctly /wg feb 2025
+ *           Test which tests sets which contain themselves.
  * @author   Wes Garland, wes@distributive.network
  * @date     Feb 2025
  */
@@ -13,8 +12,12 @@ const ser = kvin.serialize(set1);
 console.log(ser);
 const set2 = kvin.deserialize(ser);
 
+const compared = new Set();
 function eqSet(setA, setB, label)
 {
+  if (compared.has(setA))
+    return;
+  compared.add(setA);
   if (setA.size !== setB.size)
     throw new Error(`${label} has wrong size; should be ${setA.size} but is ${setB.size}`);
   eqArr(Array.from(setA.values()), Array.from(setB.values()), label);
@@ -49,6 +52,9 @@ function eqObj(objA, objB, label)
 }
 
 eqSet(set1, set2, 'set');
+
+if (!set2.has(set2))
+  throw new Error('deserialized set does not contain itself');
 
 if (kvin.serialize(set1) !== kvin.serialize(set2))
   throw new Error('serialization mismatch');
