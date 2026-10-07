@@ -201,6 +201,7 @@ KVIN.prototype.ctors = [
   typeof URL !== 'undefined' ? URL : undefined, /* not part of ES => feature-test */
   Date,
   Set,
+  ArrayBuffer,
 ];
 
 KVIN.prototype.userCtors = {}; /**< name: implementation for user-defined constructors that are not props of global */
@@ -549,7 +550,12 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, p
   }
   let o;
 
-  if (constructor !== globalThis.Buffer)
+  if (constructor === this.standardObjects.ArrayBuffer)
+  {
+    o = new constructor(bytes);
+    new Uint8Array(o).set(new Uint8Array(i8.buffer));
+  }
+  else if (constructor !== globalThis.Buffer)
     o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line;
   else
   {
@@ -730,6 +736,9 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
   }
   if (ArrayBuffer.isView(o)) {
     return this.prepare$ArrayBuffer(o)
+  }
+  if (Object.prototype.toString.call(o) === '[object ArrayBuffer]') {
+    return Object.assign(this.prepare$ArrayBuffer8(new Uint8Array(o)), { ctr: this.ctors.indexOf(this.standardObjects.ArrayBuffer) })
   }
   if (o.constructor === Map) {
     return this.prepare$Map(seen, o, where)

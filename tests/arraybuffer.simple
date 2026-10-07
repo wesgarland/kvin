@@ -1,0 +1,22 @@
+#! /usr/bin/env node
+/**
+ * @file     arraybuffer.simple
+ *           Bare ArrayBuffers round-trip with their contents.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const dense = new Uint8Array([1, 2, 3, 255]).buffer;
+const sparse = new ArrayBuffer(64);
+new Uint8Array(sparse)[40] = 7;
+const empty = new ArrayBuffer(0);
+
+const r = kvin.deserialize(kvin.serialize([dense, sparse, empty, dense]));
+for (const [i, original] of [dense, sparse, empty].entries())
+{
+  assert(r[i] instanceof ArrayBuffer, `element ${i} is not an ArrayBuffer`);
+  assert.deepStrictEqual(new Uint8Array(r[i]), new Uint8Array(original));
+}
+assert.strictEqual(r[0], r[3]);
+
+console.log('pass');
