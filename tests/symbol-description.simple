@@ -1,0 +1,17 @@
+#! /usr/bin/env node
+/**
+ * @file     symbol-description.simple
+ *           Symbols with and without descriptions round-trip.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const plain = Symbol();
+const r = kvin.deserialize(kvin.serialize([plain, Symbol(''), Symbol('null'), plain]));
+assert.strictEqual(typeof r[0], 'symbol');
+assert.strictEqual(r[0].description, undefined);
+assert.strictEqual(r[1].description, '');
+assert.strictEqual(r[2].description, 'null');
+assert.strictEqual(r[3], r[0]);
+
+console.log('pass');

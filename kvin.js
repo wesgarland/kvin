@@ -415,7 +415,7 @@ KVIN.prototype.unprepare$Map = function unprepare$Map (seen, po, position) {
 
 function unprepare$symbol(seen, po)
 {
-  const symbol = Symbol(po.symbol);
+  const symbol = Symbol(po.symbol === null ? undefined : po.symbol);
   seen.push(symbol);
   return symbol;
 }
@@ -1199,7 +1199,8 @@ function prepare$symbol(o, seen)
   else
   {
     seen.push(o);
-    return { symbol: o.description };
+    /* JSON.stringify drops undefined properties */
+    return { symbol: o.description === undefined ? null : o.description };
   }
 }
 
