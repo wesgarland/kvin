@@ -925,10 +925,13 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
 
   let pm = { mapKeys: [], mapVals: [] }
 
+  /* unprepare$Map rebuilds these arrays with unprepare$Array, which puts each on the seen list */
   let mapKeyArr = Array.from(o.keys());
+  seen.push(mapKeyArr);
   pm.mapKeys = this.prepare$Array(seen, mapKeyArr, where);
 
   let mapValArr = Array.from(o.values());
+  seen.push(mapValArr);
   pm.mapVals = this.prepare$Array(seen, mapValArr, where);
 
   let keys = Object.keys(o)
