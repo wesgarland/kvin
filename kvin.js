@@ -870,6 +870,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
 
   if (keys.length !== o.length) {
     /* sparse array or array with own properties - difference between sparse entry and value=undefined preserved */
+    let psKeys = []
     for (let j = 0; j < keys.length; j++) {
       let key = keys[j]
       let idx = +key
@@ -886,17 +887,18 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
           island.arr.push(o[k])
         }
         j += island.arr.length - 1
-        if (island.arr.length >= this.scanArrayThreshold) {
-          let tmp = this.prepare(seen, island.arr, where + '.' + 'isl@' + (j - island.arr.length))
-          if (tmp.hasOwnProperty('arr')) {
-            island.arr = tmp
-          } else {
-            pa.isl.push(island)
-          }
+        /* islands left as plain arrays are serialized by JSON.stringify alone */
+        if (island.arr.length >= this.scanArrayThreshold || !island.arr.every(el => el === null || (typeof el !== 'object' && this.isPrimitiveLike(el)))) {
+          island.arr = this.prepare(seen, island.arr, where + '.' + 'isl@' + idx)
         }
         pa.isl.push(island)
         continue
       }
+      psKeys.push(key)
+    }
+
+    /* unprepare$Array reads every island before any property, so prepare them in that order */
+    for (let key of psKeys) {
       if (!pa.hasOwnProperty('ps')) {
         pa.ps = {}
       }
