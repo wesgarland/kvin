@@ -1,0 +1,41 @@
+#! /usr/bin/env node
+/**
+ * @file     dead-logic.simple
+ *           Primitives are stored without a wrapper, small typed arrays may use the plain number
+ *           list encoding, and large runs inside sparse arrays round-trip.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+assert.strictEqual(kvin.marshal('a').what, 'a');
+assert.strictEqual(kvin.marshal(true).what, true);
+assert.deepStrictEqual(kvin.marshal({ s: 'x' }).what.ps, { s: 'x' });
+assert.deepStrictEqual(kvin.deserialize(kvin.serialize(['a', 'a', true, null, { s: 'x' }])), ['a', 'a', true, null, { s: 'x' }]);
+
+/* below typedArrayPackThreshold bytes */
+assert.deepStrictEqual(kvin.marshal(new Uint8Array([1, 2])).what.arg, [1, 2]);
+for (const value of [NaN, -0, Infinity])
+{
+  const small = new Float32Array([value]);
+  const smallR = kvin.deserialize(kvin.serialize(small));
+  assert(smallR instanceof Float32Array && Object.is(smallR[0], value), `${value} became ${smallR[0]}`);
+}
+
+assert.deepStrictEqual(kvin.deserialize(kvin.serialize(Buffer.from([1, 2]))), Buffer.from([1, 2]));
+
+const sparse = [];
+for (let i = 0; i < 40000; i++)
+  sparse[i + 5] = i % 7;
+const sparseR = kvin.deserialize(kvin.serialize(sparse));
+assert.strictEqual(sparseR.length, sparse.length);
+assert(!(0 in sparseR));
+assert.deepStrictEqual(sparseR.slice(5), sparse.slice(5));
+
+const kvinSize = new (require('../kvin').KVIN)();
+kvinSize.tune = 'size';
+const surrogates = new Uint16Array(64);
+surrogates[10] = 0xd800;
+surrogates[11] = 0x41;
+assert.deepStrictEqual(kvinSize.deserialize(kvinSize.serialize(surrogates)), surrogates);
+
+console.log('pass');
