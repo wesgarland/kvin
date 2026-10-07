@@ -452,7 +452,7 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
       let island = po.isl[prop]
       let els = Array.isArray(island.arr) ? island.arr : this.unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
 
-      if (els.length - 3 <= this.stackLimit || this.maxFunArgs) {
+      if (els.length - 3 <= (this.stackLimit || this.maxFunArgs)) {
         if (els.length && (a.length < island['@'] + els.length)) {
           a.length = island['@'] + els.length
         }
@@ -1004,7 +1004,7 @@ KVIN.prototype.prepare$ArrayBuffer16 = function prepare$ArrayBuffer16 (o) {
     return null
   } else  if (ret.isl16) {
     for (let i = 0; i < ret.isl16.length; i++) {
-      if (notUnicode(ret.isl16[i])) {
+      if (notUnicode(ret.isl16[i][0])) {
         return null
       }
     }
@@ -1084,7 +1084,7 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
 
   ab8 = this.prepare$ArrayBuffer8(o)
   if (this.tune !== "size") {
-    if (naive && naive.length < ab8.length) {
+    if (naive && naive.ctr !== -1 && naiveJSONLen < JSON.stringify(ab8).length) {
       return naive
     }
     return ab8
@@ -1155,8 +1155,8 @@ function prepare$number (n) {
 }
     
 /* Store primitives and sort-of-primitives (like object literals) directly */
-function prepare$primitive (primitive, where) {
-  switch (typeof po) {
+function prepare$primitive (primitive, _where) {
+  switch (typeof primitive) {
     case 'boolean':
     case 'number': /* not all cases, see prepare$number */
     case 'string':
