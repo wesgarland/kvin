@@ -371,6 +371,7 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
   /* A function is basically a callable object */
   po.ctr = this.ctors.indexOf(Object)
   delete po.fnName
+  const seenIndex = seen.length
   obj = this.unprepare(seen, po, position)
 
   if (!this.makeFunctions) {
@@ -379,6 +380,7 @@ KVIN.prototype.unprepare$function = function unprepare$function (seen, po, posit
   }
 
   fn = (new Function('return ' + po.arg))()  // eslint-disable-line
+  seen[seenIndex] = fn
   if (po.hasOwnProperty('ps')) {
     for (let prop in po.ps) {
       fn[prop] = obj[prop]
