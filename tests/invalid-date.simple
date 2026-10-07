@@ -1,0 +1,14 @@
+#! /usr/bin/env node
+/**
+ * @file     invalid-date.simple
+ *           Invalid Dates stay invalid; valid Dates keep their time.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const [invalid, valid] = kvin.deserialize(kvin.serialize([new Date(NaN), new Date(1700000000123)]));
+assert(invalid instanceof Date);
+assert(Number.isNaN(invalid.getTime()), `invalid date became ${invalid}`);
+assert.strictEqual(valid.getTime(), 1700000000123);
+
+console.log('pass');

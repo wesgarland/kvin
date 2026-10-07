@@ -769,8 +769,12 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
 
   if (typeof o.toKVIN === 'function')
     return Object.assign(ret, o.toKVIN(o, this));
-  else if (typeof o.toJSON === 'function')
+  else if (typeof o.toJSON === 'function') {
     ret.arg = o.toJSON();
+    /* toJSON() is null for an invalid date, and new Date(null) is the epoch */
+    if (ret.arg === null && Object.prototype.toString.call(o) === '[object Date]')
+      ret.arg = 'Invalid Date';
+  }
   else if (o.toString !== this.standardObjects.Object.prototype.toString)
     ret.arg = o.toString();
 
