@@ -678,16 +678,21 @@ KVIN.prototype.prepare$Error = function prepare$Error(seen, o, where)
     arg: o.message
   };
 
+  /* prepare already put o in the seen list; preparing each property once, in ps key order, keeps the
+   * seen list in step with unprepare$object */
+  const props = new Set();
   for (let prop of ['code', 'stack', 'lineNumber', 'fileName', 'columnNumber'])
     if (o.hasOwnProperty(prop))
-      ret.ps[prop] = o[prop];
+      props.add(prop);
   for (let prop in o)
     if (o.hasOwnProperty(prop))
-      ret.ps[prop] = o[prop];
-  if (o.cause)
-    ret.ps.cause = this.prepare(seen, o.cause, where + '.cause');
+      props.add(prop);
+  if (o.hasOwnProperty('cause'))
+    props.add('cause');
 
-  seen.push(ret);
+  for (let prop of props)
+    ret.ps[prop] = this.prepare(seen, o[prop], where + '.' + prop);
+
   return ret;
 }
 
