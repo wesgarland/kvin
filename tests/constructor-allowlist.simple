@@ -1,0 +1,35 @@
+#! /usr/bin/env node
+/**
+ * @file     constructor-allowlist.simple
+ *           constructorAllowlist is enforced for every constructor name, not only names that
+ *           fail the identifier check.
+ */
+const assert = require('assert');
+const { KVIN } = require('../kvin');
+
+function payload(ctr, extra) { return JSON.stringify({ _serializeVerId: 'v9', what: Object.assign({ ctr }, extra) }); }
+
+/* With an allowlist, a valid name that is not on it, not a standard class and not a userCtor is rejected */
+const kvin = new KVIN();
+kvin.constructorAllowlist = ['Allowed'];
+assert.throws(() => kvin.deserialize(payload('SharedArrayBuffer', { arg: 8 })), /Allowlist does not include constructor/);
+assert.throws(() => kvin.deserialize(payload('RangeError', { arg: 'x' })), /Allowlist does not include constructor/);
+
+/* Standard classes still work with an allowlist set */
+assert.deepStrictEqual(kvin.deserialize(kvin.serialize({ a: 1 })), { a: 1 });
+assert(kvin.deserialize(kvin.serialize(new Date(0))) instanceof Date);
+
+/* An allowlisted userCtor is constructed */
+function Allowed() { this.ok = true; }
+kvin.userCtors.Allowed = Allowed;
+assert(kvin.deserialize(payload('Allowed')) instanceof Allowed);
+
+/* No eval of call-site locals: a name visible only inside unprepare$object does not resolve */
+const sentinel = new KVIN();
+assert.throws(() => sentinel.deserialize(payload('construct', { arg: 1 })), /Unknown constructor|Allowlist/);
+
+/* With no allowlist, named globals still resolve (unchanged default) */
+const open = new KVIN();
+assert(open.deserialize(payload('Boolean', { arg: '' })) instanceof Boolean);
+
+console.log('pass');
