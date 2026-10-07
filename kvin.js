@@ -437,9 +437,35 @@ KVIN.prototype.unprepare$Promise = function unprepare$Promise(seen, po, how, pos
     pr.resolve = resolve;
     pr.reject  = reject;
   });
-  pr[how](this.unprepare([/* avoid seen memo */], po[how], position + '.' + how));
   seen.push(pr.promise);
+
+  /* The outcome was prepared after the rest of its graph, against a copy of the finished seen list,
+   * so it can only be unprepared once this graph is done; see prepare$Promise. */
+  const settle = () => pr[how](this.unprepare$settled(seen, po[how], position + '.' + how));
+  if (seen.pending)
+    seen.pending.push(settle);
+  else
+    settle();
   return pr.promise;
+}
+
+/**
+ * Unprepare a promise outcome against a copy of the seen list of the graph which contained the
+ * promise, then settle any promises found in the outcome itself.
+ */
+KVIN.prototype.unprepare$settled = function unprepare$settled(seen, po, position)
+{
+  const scope = seen.slice();
+  scope.pending = [];
+  const value = this.unprepare(scope, po, position);
+  settlePending(scope);
+  return value;
+}
+
+function settlePending(seen)
+{
+  while (seen.pending.length)
+    seen.pending.shift()();
 }
 
 function unprepare$bigint(arg) {
@@ -855,7 +881,7 @@ KVIN.prototype.prepare =  function prepare (seen, o, where) {
     }
 
     json = JSON.stringify(pa.arr[pa.arr.length - 1])
-    if (json === lastJson) {
+    if (json === lastJson && !promisePlaceholders.has(pa.arr[pa.arr.length - 1])) {
       if (pa.arr[pa.arr.length - 2].lst) {
         pa.arr[pa.arr.length - 2].lst++
         pa.arr.length--
@@ -1146,15 +1172,26 @@ KVIN.prototype.unprepare$Set = function prepare$Set (seen, po, position) {
   return new Set(arr);
 }
 
+/* Prepared promises are empty until they settle, so they must not be run-length encoded as repeats */
+const promisePlaceholders = new WeakSet();
+
 KVIN.prototype.prepare$Promise = function prepare$Promise(seen, promise, where)
 {
   if (!seen.promises)
     throw new Error(`synchronous invocation cannot marshal Promise ${where}`);
   const ret = { /* placeholder */ };
-  promise
-    .catch(error => ret.reject  = this.prepare(seen, error, where + '$reject'))
-    .then (value => ret.resolve = this.prepare(seen, value, where + '$resolve'));
-  seen.promises.push(promise);
+  promisePlaceholders.add(ret);
+
+  /* Outcomes settle after the synchronous part of marshal has finished, so seen holds the whole
+   * graph by then. Each outcome is prepared against its own copy, so its back-references to the
+   * graph are valid no matter in which order promises settle. */
+  const prepareOutcome = (how, value) => {
+    const scope = seen.slice();
+    scope.promises = seen.promises;
+    ret[how] = this.prepare(scope, value, where + '$' + how);
+  };
+  seen.promises.push(promise.then(value => prepareOutcome('resolve', value),
+                                  error => prepareOutcome('reject',  error)));
   return ret;
 }
 
@@ -1227,7 +1264,14 @@ KVIN.prototype.marshalAsync = async function serialize$$marshalAsync(value)
   seen.promises = [];
 
   const marshalledObject = this.marshal(value, seen);
-  await Promise.allSettled(seen.promises);
+
+  /* preparing an outcome can find more promises */
+  for (let settled = 0; settled < seen.promises.length;)
+  {
+    const batch = seen.promises.slice(settled);
+    settled = seen.promises.length;
+    await Promise.allSettled(batch);
+  }
   return marshalledObject;
 }
 
@@ -1253,7 +1297,11 @@ KVIN.prototype.unmarshal = function serialize$$unmarshal (obj) {
     default:
       throw new Error(`Cannot unmarshal ${obj._serializeVerId} objects - please update Kvin`)
   }
-  return this.unprepare([], obj.what, 'top')
+  const seen = [];
+  seen.pending = [];
+  const value = this.unprepare(seen, obj.what, 'top');
+  settlePending(seen);
+  return value;
 }
 
 /** Serialize a value.
