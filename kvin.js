@@ -604,7 +604,7 @@ KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (seen,
   }
   i8 = new Int8Array(i16.buffer, i16.byteOffset, bytes)
   if (po.hasOwnProperty('eb')) {
-    i8[i8.byteLength - 1] = po.eb.charCodeAt(0)
+    i8[i8.byteLength - 1] = po.eb
   }
 
   if (!littleEndian) {
@@ -614,7 +614,7 @@ KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (seen,
       i8[(i * 2) + 0] = i8[(i * 2) + 0] ^ i8[(i * 2) + 1]
     }
   }
-  let o = new constructor(i8.buffer, i8.byteOffset) // eslint-disable-line
+  let o = new constructor(i8.buffer, i8.byteOffset, bytes / constructor.BYTES_PER_ELEMENT) // eslint-disable-line
   seen.push(o)
   return o
 }
