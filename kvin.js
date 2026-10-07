@@ -1091,7 +1091,7 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   let ab16, ab16JSONLen;
 
   if (this.tune === "speed" || this.tune === "size" || (o.byteLength < this.typedArrayPackThreshold)) {
-    naive = { ctr: this.ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
+    naive = { ctr: this.ctors.indexOf(o.constructor), arg: Array.prototype.map.call(o, jsonSafeNumber) }
     if (this.tune === "speed") {
       return naive
     }
@@ -1119,6 +1119,13 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   }
 
   return ab8;
+}
+
+/* JSON has no NaN, Infinity or -0; typed array constructors convert these strings back */
+function jsonSafeNumber(n) {
+  if (Object.is(n, -0))
+    return '-0'
+  return Number.isFinite(n) ? n : String(n)
 }
 
 KVIN.prototype.prepare$RegExp = function prepare$RegExp (o) {
