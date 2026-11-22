@@ -150,7 +150,7 @@ kvin.serialize({foo: "bar"});
 ### KVIN Instance Properties
 | Property                | Default | Description
 |-------------------------|---------|---------------------------------------------------------
-| allowConstructorList    |         | Array which is a list of non-standard constructors that KVIN will try to deserialize
+| constructorAllowlist    |         | Array which is a list of non-standard global constructors that KVIN will try to deserialize
 | userCtors               | {}      | Dictionary; keys are constructor names, values are constructor functions for user-defined classes
 | makeFunctions           | false   | When true allows Kvin to deserialize Functions
 

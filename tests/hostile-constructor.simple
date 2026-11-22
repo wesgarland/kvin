@@ -1,0 +1,67 @@
+#! /usr/bin/env node
+/**
+ * @file        hostile-constructor.simple
+ *              Verify that unmarshaling hostile input cannot run code through constructor names: only
+ *              user constructors, standard constructors and allowed globals are constructed, and
+ *              Function never is unless makeFunctions is set; nor replace an object's prototype.
+ * @author      Wes Garland, wes@distributive.network
+ * @date        Nov 2026
+ */
+'use strict';
+
+const KVIN = require('..');
+const assert = require('assert');
+
+function marshaled(what)
+{
+  return { _serializeVerId: 'v9', what };
+}
+
+function assertRefused(what, message)
+{
+  globalThis.hostileConstructorRan = false;
+  assert.throws(() => KVIN.unmarshal(marshaled(what)), message);
+  assert.strictEqual(globalThis.hostileConstructorRan, false);
+}
+
+const code = 'globalThis.hostileConstructorRan = true; 1';
+const functionIndex = KVIN.ctors.indexOf(Function);
+
+assertRefused({ ctr: 'eval', args: [ code ] }, /Unknown constructor eval/);
+assertRefused({ ctr: 'Function', arg: code }, /Cannot construct Function/);
+assertRefused({ ctr: 'require', arg: 'child_process' }, /Unknown constructor require/);
+assertRefused({ ctr: 'process', arg: 0 }, /Unknown constructor process/);
+assertRefused({ ctr: 'setTimeout', args: [ code, 0 ] }, /Unknown constructor setTimeout/);
+assertRefused({ ctr: 'eval', ab8: '' }, /Unknown constructor eval/);
+assertRefused({ ctr: 'eval', ab16: '' }, /Unknown constructor eval/);
+assertRefused({ ctr: functionIndex, arg: code }, /Cannot construct Function/);
+
+const typeError = KVIN.unmarshal(marshaled({ ctr: 'TypeError', arg: 'hello' }));
+assert(typeError instanceof TypeError);
+assert.strictEqual(typeError.message, 'hello');
+
+if (typeof Buffer === 'function')
+  assert(Buffer.isBuffer(KVIN.parse(KVIN.stringify(Buffer.from('hello')))));
+
+const date = KVIN.parse(KVIN.stringify(new Date(0)));
+assert(date instanceof Date);
+assert.strictEqual(date.getTime(), 0);
+
+function MyClass() {}
+KVIN.userCtors.MyClass = MyClass;
+assert(KVIN.parse(KVIN.stringify(new MyClass())) instanceof MyClass);
+
+globalThis.AllowedGlobal = function AllowedGlobal() {};
+assert.throws(() => KVIN.parse(KVIN.stringify(new globalThis.AllowedGlobal())), /Unknown constructor AllowedGlobal/);
+KVIN.constructorAllowlist = [ 'AllowedGlobal' ];
+assert(KVIN.parse(KVIN.stringify(new globalThis.AllowedGlobal())) instanceof globalThis.AllowedGlobal);
+delete KVIN.constructorAllowlist;
+
+const proto = KVIN.unmarshal(JSON.parse('{"_serializeVerId":"v9","what":{"ctr":0,"ps":{"__proto__":{"raw":{"injected":true}}}}}'));
+assert.strictEqual(Object.getPrototypeOf(proto), Object.prototype);
+assert.strictEqual(proto.injected, undefined);
+const rawProto = KVIN.unmarshal(JSON.parse('{"_serializeVerId":"v9","what":{"raw":{"__proto__":{"injected":true}}}}'));
+assert.strictEqual(Object.getPrototypeOf(rawProto), Object.prototype);
+assert.strictEqual(rawProto.injected, undefined);
+
+console.log('Test passed');
