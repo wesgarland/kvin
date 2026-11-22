@@ -227,7 +227,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
     case 'string':
       if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/))
         throw new Error('Invalid constructor name: ' + po.ctr)
-      /* constructorAllowlist is enforced per name in resolveNamedConstructor, below */
+      /* names are resolved, and checked, in resolveNamedConstructor, below */
       break
     case 'number':
       if (!(po.ctr >= 0 && po.ctr < this.ctors.length)) {
@@ -245,7 +245,7 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
         po.used = true;
       else
         return JSON.parse(JSON.stringify(po.raw));
-      return Object.assign(new this.standardObjects.Object(), po.raw);
+      return defineOwnProperties(new this.standardObjects.Object(), po.raw);
     }
     return po.raw;
   }
@@ -303,12 +303,39 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   throw new TypeError('Invalid preparation formula at ' + position)
 }
 
+/** Set a property of an object being unprepared. A property named __proto__ becomes an own data
+ *  property, as it is in JSON, rather than replacing the object's prototype.
+ */
+function defineOwnProperty(o, prop, value)
+{
+  if (prop === '__proto__')
+    Object.defineProperty(o, prop, { value, writable: true, enumerable: true, configurable: true });
+  else
+    o[prop] = value;
+}
+
+/** Copy the own enumerable properties of source to o with defineOwnProperty; returns o */
+function defineOwnProperties(o, source)
+{
+  for (let prop of Object.keys(source))
+    defineOwnProperty(o, prop, source[prop]);
+  return o;
+}
+
+/** Names of standard constructors, besides the standard classes, that a prepared object may name */
+KVIN.prototype.builtinCtorNames = [
+  'AggregateError', 'ArrayBuffer', 'BigInt64Array', 'BigUint64Array', 'DataView', 'EvalError',
+  'Float16Array', 'Map', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError',
+  'Buffer', /* Node.js */
+];
+
 /** Resolve a constructor named by a string in a prepared object.
  *
- *  Looks the name up in userCtors, then the standard classes, then the named globals -- it never
- *  calls eval, so a payload can only reach those, not locals in scope at the call site. When
- *  constructorAllowlist is set, a name which is none of userCtors, a standard class, or on the
- *  list is rejected. With no allowlist the behaviour is unchanged: any named global resolves.
+ *  Looks the name up in userCtors, then the standard classes, then the globals named in
+ *  constructorAllowlist, or in builtinCtorNames when there is no allowlist; any other name is
+ *  rejected. It never calls eval, and
+ *  never resolves Function unless makeFunctions is set, because constructing Function from a
+ *  prepared object is equivalent to eval.
  */
 KVIN.prototype.resolveNamedConstructor = function resolveNamedConstructor (name)
 {
@@ -318,11 +345,19 @@ KVIN.prototype.resolveNamedConstructor = function resolveNamedConstructor (name)
   if (this.userCtors.hasOwnProperty(name))
     return this.userCtors[name];
 
+  if (name === 'Function' && !this.makeFunctions)
+    throw new Error('Cannot construct Function without makeFunctions');
+
   if (this.standardObjects.hasOwnProperty(name))
     return this.standardObjects[name];
 
-  if (this.constructorAllowlist && this.constructorAllowlist.indexOf(name) === -1)
-    throw new Error('Allowlist does not include constructor ' + name);
+  if (this.constructorAllowlist)
+  {
+    if (this.constructorAllowlist.indexOf(name) === -1)
+      throw new Error('Allowlist does not include constructor ' + name);
+  }
+  else if (this.builtinCtorNames.indexOf(name) === -1)
+    throw new Error('Unknown constructor ' + name);
 
   const ctor = typeof globalThis !== 'undefined' ? globalThis[name] : undefined;
   if (typeof ctor !== 'function')
@@ -349,6 +384,8 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
   } else {
     constructor = this.ctors[po.ctr]
   }
+  if (constructor === this.standardObjects.Function && !this.makeFunctions)
+    throw new Error('Cannot construct Function without makeFunctions')
 
   if (po.hasOwnProperty('args'))
     o = construct(constructor, po.args);
@@ -369,7 +406,7 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
   if (po.hasOwnProperty('ps')) {
     for (let prop in po.ps) {
       if (po.ps.hasOwnProperty(prop)) {
-        o[prop] = this.unprepare(seen, po.ps[prop], position + '.' + prop)
+        defineOwnProperty(o, prop, this.unprepare(seen, po.ps[prop], position + '.' + prop))
       }
     }
   }
