@@ -14,7 +14,7 @@ const assert = require('assert');
 
 function marshaled(what)
 {
-  return { _serializeVerId: 'v9', what };
+  return { _serializeVerId: 'v8', what };
 }
 
 function assertRefused(what, message)
@@ -57,10 +57,10 @@ KVIN.constructorAllowlist = [ 'AllowedGlobal' ];
 assert(KVIN.parse(KVIN.stringify(new globalThis.AllowedGlobal())) instanceof globalThis.AllowedGlobal);
 delete KVIN.constructorAllowlist;
 
-const proto = KVIN.unmarshal(JSON.parse('{"_serializeVerId":"v9","what":{"ctr":0,"ps":{"__proto__":{"raw":{"injected":true}}}}}'));
+const proto = KVIN.unmarshal(JSON.parse('{"_serializeVerId":"v8","what":{"ctr":0,"ps":{"__proto__":{"raw":{"injected":true}}}}}'));
 assert.strictEqual(Object.getPrototypeOf(proto), Object.prototype);
 assert.strictEqual(proto.injected, undefined);
-const rawProto = KVIN.unmarshal(JSON.parse('{"_serializeVerId":"v9","what":{"raw":{"__proto__":{"injected":true}}}}'));
+const rawProto = KVIN.unmarshal(JSON.parse('{"_serializeVerId":"v8","what":{"raw":{"__proto__":{"injected":true}}}}'));
 assert.strictEqual(Object.getPrototypeOf(rawProto), Object.prototype);
 assert.strictEqual(rawProto.injected, undefined);
 

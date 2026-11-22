@@ -7,7 +7,7 @@
 const assert = require('assert');
 const { KVIN } = require('../kvin');
 
-function payload(ctr, extra) { return JSON.stringify({ _serializeVerId: 'v9', what: Object.assign({ ctr }, extra) }); }
+function payload(ctr, extra) { return JSON.stringify({ _serializeVerId: 'v8', what: Object.assign({ ctr }, extra) }); }
 
 /* With an allowlist, a valid name that is not on it, not a standard class and not a userCtor is rejected */
 const kvin = new KVIN();

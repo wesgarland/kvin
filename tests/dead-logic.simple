@@ -9,7 +9,7 @@ const kvin = require('../kvin');
 
 assert.strictEqual(kvin.marshal('a').what, 'a');
 assert.strictEqual(kvin.marshal(true).what, true);
-assert.deepStrictEqual(kvin.marshal({ s: 'x' }).what.ps, { s: 'x' });
+assert.deepStrictEqual(kvin.deserialize(kvin.serialize({ s: 'x' })), { s: 'x' });
 assert.deepStrictEqual(kvin.deserialize(kvin.serialize(['a', 'a', true, null, { s: 'x' }])), ['a', 'a', true, null, { s: 'x' }]);
 
 /* below typedArrayPackThreshold bytes */
