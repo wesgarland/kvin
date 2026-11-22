@@ -228,12 +228,9 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   if (po.hasOwnProperty('ctr')) {
     switch (typeof po.ctr) {
     case 'string':
-      if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/)) {
-        if (this.constructorAllowlist && this.constructorAllowlist.indexOf(po.ctr) === -1) {
-          throw new Error('Allowlist does not include constructor ' + po.ctr)
-        }
+      if (!po.ctr.match(/^[A-Za-z_0-9$][A-Za-z_0-9$]*$/))
         throw new Error('Invalid constructor name: ' + po.ctr)
-      }
+      /* constructorAllowlist is enforced per name in resolveNamedConstructor, below */
       break
     case 'number':
       if (!(po.ctr >= 0 && po.ctr < this.ctors.length)) {
@@ -314,6 +311,33 @@ KVIN.prototype.unprepare = function unprepare (seen, po, position) {
   throw new TypeError('Invalid preparation formula at ' + position)
 }
 
+/** Resolve a constructor named by a string in a prepared object.
+ *
+ *  Looks the name up in userCtors, then the standard classes, then the named globals -- it never
+ *  calls eval, so a payload can only reach those, not locals in scope at the call site. When
+ *  constructorAllowlist is set, a name which is none of userCtors, a standard class, or on the
+ *  list is rejected. With no allowlist the behaviour is unchanged: any named global resolves.
+ */
+KVIN.prototype.resolveNamedConstructor = function resolveNamedConstructor (name)
+{
+  if (typeof name !== 'string' || !name.match(/^[A-Za-z_$][A-Za-z_0-9$]*$/))
+    throw new Error('Invalid constructor name: ' + name);
+
+  if (this.userCtors.hasOwnProperty(name))
+    return this.userCtors[name];
+
+  if (this.standardObjects.hasOwnProperty(name))
+    return this.standardObjects[name];
+
+  if (this.constructorAllowlist && this.constructorAllowlist.indexOf(name) === -1)
+    throw new Error('Allowlist does not include constructor ' + name);
+
+  const ctor = typeof globalThis !== 'undefined' ? globalThis[name] : undefined;
+  if (typeof ctor !== 'function')
+    throw new Error('Unknown constructor ' + name);
+  return ctor;
+}
+
 KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position) {
   let o
   let constructor;
@@ -329,10 +353,7 @@ KVIN.prototype.unprepare$object = function unprepare$object (seen, po, position)
   }
 
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
-    if (this.userCtors.hasOwnProperty(po.ctr))
-      constructor = this.userCtors[po.ctr];
-    else
-      constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
+    constructor = this.resolveNamedConstructor(po.ctr);
   } else {
     constructor = this.ctors[po.ctr]
   }
@@ -525,7 +546,7 @@ KVIN.prototype.unprepare$ArrayBuffer8 = function unprepare$ArrayBuffer8 (seen, p
   let constructor;
 
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
-    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
+    constructor = this.resolveNamedConstructor(po.ctr);
   } else {
     constructor = this.ctors[po.ctr]
   }
@@ -575,7 +596,7 @@ KVIN.prototype.unprepare$ArrayBuffer16 = function unprepare$ArrayBuffer16 (seen,
   let constructor;
 
   if (typeof po.ctr === 'string' && !po.ctr.match(/^[1-9][0-9]*$/)) {
-    constructor = eval(po.ctr) /* pre-validated! */ // eslint-disable-line
+    constructor = this.resolveNamedConstructor(po.ctr);
   } else {
     constructor = this.ctors[po.ctr]
   }
