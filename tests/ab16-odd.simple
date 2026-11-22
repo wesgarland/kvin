@@ -1,0 +1,27 @@
+#! /usr/bin/env node
+/**
+ * @file     ab16-odd.simple
+ *           Typed arrays with an odd number of bytes round-trip with tune = 'size', which can
+ *           pick the 16-bit encodings.
+ */
+const assert = require('assert');
+const kvin = new (require('../kvin').KVIN)();
+kvin.tune = 'size';
+
+const dense = new Uint8Array(101);
+for (let i = 0; i < dense.length; i++)
+  dense[i] = 0x41 + (i % 20);
+const sparse = new Uint8Array(101);
+sparse.set(dense.subarray(0, 30), 10);
+sparse[100] = 0xff;
+
+for (const original of [dense, sparse])
+{
+  const marshaled = kvin.marshal(original).what;
+  assert('ab16' in marshaled || 'isl16' in marshaled, 'expected a 16-bit encoding');
+  const r = kvin.deserialize(kvin.serialize(original));
+  assert(r instanceof Uint8Array);
+  assert.deepStrictEqual(r, original);
+}
+
+console.log('pass');
