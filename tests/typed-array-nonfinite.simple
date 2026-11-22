@@ -1,0 +1,23 @@
+#! /usr/bin/env node
+/**
+ * @file     typed-array-nonfinite.simple
+ *           NaN, Infinity and -0 in float typed arrays survive every tuning mode.
+ */
+const assert = require('assert');
+const { KVIN } = require('../kvin');
+
+for (const tune of [undefined, 'speed', 'size'])
+{
+  const kvin = new KVIN();
+  kvin.tune = tune;
+  for (const Ctor of [Float32Array, Float64Array])
+  {
+    const original = new Ctor([NaN, Infinity, -Infinity, -0, 1.5]);
+    const r = kvin.deserialize(kvin.serialize(original));
+    assert.strictEqual(r.constructor, Ctor);
+    for (let i = 0; i < original.length; i++)
+      assert(Object.is(r[i], original[i]), `tune=${tune} ${Ctor.name}[${i}]: ${r[i]} !== ${original[i]}`);
+  }
+}
+
+console.log('pass');

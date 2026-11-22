@@ -482,7 +482,7 @@ KVIN.prototype.unprepare$Array = function unprepare$Array (seen, po, position) {
       let island = po.isl[prop]
       let els = Array.isArray(island.arr) ? island.arr : this.unprepare$Array(seen, island.arr, [ position, 'isl', prop ].join('.'))
 
-      if (els.length - 3 <= this.stackLimit || this.maxFunArgs) {
+      if (els.length - 3 <= (this.stackLimit || this.maxFunArgs)) {
         if (els.length && (a.length < island['@'] + els.length)) {
           a.length = island['@'] + els.length
         }
@@ -1021,7 +1021,7 @@ KVIN.prototype.prepare$ArrayBuffer16 = function prepare$ArrayBuffer16 (o) {
     return null
   } else  if (ret.isl16) {
     for (let i = 0; i < ret.isl16.length; i++) {
-      if (notUnicode(ret.isl16[i])) {
+      if (notUnicode(ret.isl16[i][0])) {
         return null
       }
     }
@@ -1091,7 +1091,7 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   let ab16, ab16JSONLen;
 
   if (this.tune === "speed" || this.tune === "size" || (o.byteLength < this.typedArrayPackThreshold)) {
-    naive = { ctr: this.ctors.indexOf(o.constructor), arg: Array.prototype.slice.call(o) }
+    naive = { ctr: this.ctors.indexOf(o.constructor), arg: Array.prototype.map.call(o, jsonSafeNumber) }
     if (this.tune === "speed") {
       return naive
     }
@@ -1101,7 +1101,7 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
 
   ab8 = this.prepare$ArrayBuffer8(o)
   if (this.tune !== "size") {
-    if (naive && naive.length < ab8.length) {
+    if (naive && naive.ctr !== -1 && naiveJSONLen < JSON.stringify(ab8).length) {
       return naive
     }
     return ab8
@@ -1119,6 +1119,13 @@ KVIN.prototype.prepare$ArrayBuffer = function prepare$ArrayBuffer (o) {
   }
 
   return ab8;
+}
+
+/* JSON has no NaN, Infinity or -0; typed array constructors convert these strings back */
+function jsonSafeNumber(n) {
+  if (Object.is(n, -0))
+    return '-0'
+  return Number.isFinite(n) ? n : String(n)
 }
 
 KVIN.prototype.prepare$RegExp = function prepare$RegExp (o) {
@@ -1178,7 +1185,7 @@ function prepare$number (n) {
 
 /* Store primitives and sort-of-primitives (like object literals) directly */
 function prepare$primitive (primitive, _where) {
-  switch (typeof po) {
+  switch (typeof primitive) {
     case 'boolean':
     case 'number': /* not all cases, see prepare$number */
     case 'string':
