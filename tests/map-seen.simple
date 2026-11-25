@@ -1,0 +1,20 @@
+#! /usr/bin/env node
+/**
+ * @file     map-seen.simple
+ *           Values after a Map in the object graph keep their identity, as do Maps referenced
+ *           more than once and objects shared between a Map and the rest of the graph.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const shared = { z: 1 };
+const map = new Map([[1, shared], [shared, 'v']]);
+const r = kvin.deserialize(kvin.serialize([map, shared, shared, map]));
+assert(r[0] instanceof Map);
+assert.strictEqual(r[0], r[3]);
+assert.strictEqual(r[1], r[2]);
+assert.deepStrictEqual(r[1], { z: 1 });
+assert.strictEqual(r[0].get(1), r[1]);
+assert.strictEqual(r[0].get(r[1]), 'v');
+
+console.log('pass');
