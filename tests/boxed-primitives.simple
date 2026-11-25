@@ -1,0 +1,17 @@
+#! /usr/bin/env node
+/**
+ * @file     boxed-primitives.simple
+ *           Boxed primitives round-trip with their values.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+for (const value of [new Boolean(false), new Boolean(true), new Number(-1.5), new Number(NaN),
+                     new Number(-Infinity), new String(''), new String('abc')])
+{
+  const r = kvin.deserialize(kvin.serialize(value));
+  assert.strictEqual(r.constructor, value.constructor);
+  assert(Object.is(r.valueOf(), value.valueOf()), `${value.constructor.name}(${value}) became ${r}`);
+}
+
+console.log('pass');
