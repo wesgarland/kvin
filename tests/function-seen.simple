@@ -1,0 +1,20 @@
+#! /usr/bin/env node
+/**
+ * @file     function-seen.simple
+ *           With makeFunctions, a function referenced more than once deserializes as the same
+ *           function each time.
+ */
+const assert = require('assert');
+const kvin = new (require('../kvin').KVIN)();
+kvin.makeFunctions = true;
+
+function foo() { return 1; }
+foo.tag = 'x';
+const r = kvin.deserialize(kvin.serialize([foo, { f: foo }, foo]));
+assert.strictEqual(typeof r[0], 'function');
+assert.strictEqual(r[0](), 1);
+assert.strictEqual(r[0].tag, 'x');
+assert.strictEqual(r[1].f, r[0]);
+assert.strictEqual(r[2], r[0]);
+
+console.log('pass');
