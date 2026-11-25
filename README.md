@@ -14,7 +14,7 @@ network or storage to disk in a way that co-exists peacefully with JSON, but it 
 data types, including:
 
 * undefined, null, NaN, Infinity, -Infinity, -0
-* Typed Arrays (Float64Array, Int64Array, etc)
+* Typed Arrays (Float64Array, Int64Array, etc) and ArrayBuffer
 * Object graphs with cycles
 * Arrays with enumerable, non-numeric properties
 * Sparse Arrays
