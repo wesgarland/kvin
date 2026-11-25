@@ -1,0 +1,46 @@
+#! /usr/bin/env node
+/**
+ * @file     promise-outcomes.simple
+ *           Promises serialized with serializeAsync: rejections stay rejections, outcomes may
+ *           reference the rest of the graph, and promises inside outcomes are awaited.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+/* resolves to a box, so that a deserialized promise is not adopted by the async function's own */
+async function roundTrip(value)
+{
+  return { value: kvin.deserialize(await kvin.serializeAsync(value)) };
+}
+
+async function main()
+{
+  const rejected = Promise.reject('nope');
+  rejected.catch(() => {});
+  await assert.rejects((await roundTrip(rejected)).value, (e) => e === 'nope');
+
+  const rejectedError = Promise.reject(new Error('boom'));
+  rejectedError.catch(() => {});
+  await assert.rejects((await roundTrip(rejectedError)).value, { message: 'boom' });
+
+  const shared = { a: 1 };
+  const [o, p] = (await roundTrip([shared, Promise.resolve(shared)])).value;
+  assert.strictEqual(await p, o);
+
+  const outcomeShared = { b: 2 };
+  const later = new Promise((resolve) => setTimeout(() => resolve([outcomeShared, outcomeShared]), 10));
+  const [p1, p2] = (await roundTrip([later, Promise.resolve({ q: outcomeShared })])).value;
+  const [x, y] = await p1;
+  assert.strictEqual(x, y);
+  assert.deepStrictEqual((await p2).q, { b: 2 });
+
+  const nested = await (await roundTrip(Promise.resolve({ inner: Promise.resolve(5) }))).value;
+  assert.strictEqual(await nested.inner, 5);
+
+  const deep = await (await roundTrip(Promise.resolve({ a: Promise.resolve({ b: Promise.resolve(shared) }) }))).value;
+  assert.deepStrictEqual(await (await deep.a).b, { a: 1 });
+
+  console.log('pass');
+}
+
+main().catch((error) => { console.error(error); process.exit(1); });
