@@ -1,0 +1,36 @@
+#! /usr/bin/env node
+/**
+ * @file     context-ctor-list.simple
+ *           A KVIN context made with a list of another context's constructors serializes that
+ *           context's objects, and contexts can be made where URL is not defined.
+ */
+const assert = require('assert');
+const vm = require('vm');
+const { KVIN } = require('../kvin');
+
+const ctx = vm.createContext({});
+const obj = vm.runInContext('({ a: { b: 1 }, c: [1, 2] })', ctx);
+const names = ['Object', 'Array', 'Error', 'Function', 'Number', 'String', 'Boolean'];
+
+const fromList = new KVIN(vm.runInContext(`[${names}]`, ctx));
+const fromDict = new KVIN(vm.runInContext(`({${names}})`, ctx));
+for (const kvin of [fromList, fromDict])
+{
+  const r = kvin.deserialize(kvin.serialize(obj));
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(r)), { a: { b: 1 }, c: [1, 2] });
+  assert.strictEqual(typeof r.a, 'object');
+}
+
+const savedCtors = KVIN.prototype.ctors;
+KVIN.prototype.ctors = savedCtors.map((ctor) => ctor === URL ? undefined : ctor);
+try
+{
+  new KVIN([Object]);
+  new KVIN({ Object });
+}
+finally
+{
+  KVIN.prototype.ctors = savedCtors;
+}
+
+console.log('pass');

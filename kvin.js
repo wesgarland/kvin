@@ -115,25 +115,25 @@ function KVIN(ctors)
       if (!ctor)
         continue;
       this[ctor.name] = ctor
+      this.standardObjects[ctor.name] = ctor;
       for (let i=0; i < this.ctors.length; i++)
       {
-        if (this.ctors[i].name === ctor.name)
+        if (this.ctors[i] && this.ctors[i].name === ctor.name)
           this.ctors[i] = ctor;
       }
     }
   }
   else
   {
-    for (let entry of Object.entries(ctors))
+    for (let [ name, ctor ] of Object.entries(ctors))
     {
+      if (!ctor)
+        continue;
+      this.standardObjects[name] = ctor;
       for (let i=0; i < this.ctors.length; i++)
       {
-        let [ name, ctor ] = entry;
-        if (!ctor)
-          continue;
-        if (this.ctors[i].name === name)
+        if (this.ctors[i] && this.ctors[i].name === name)
           this.ctors[i] = ctor;
-          this.standardObjects[name] = ctor;
       }
     }
   }
