@@ -1,0 +1,17 @@
+#! /usr/bin/env node
+/**
+ * @file     set-seen.simple
+ *           A Set referenced more than once deserializes as the same Set each time.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const shared = { z: 1 };
+const set = new Set([1, shared]);
+const r = kvin.deserialize(kvin.serialize([set, set, shared]));
+assert(r[0] instanceof Set);
+assert.strictEqual(r[0], r[1]);
+assert(r[0].has(r[2]));
+assert.deepStrictEqual(Array.from(r[0]), [1, { z: 1 }]);
+
+console.log('pass');
