@@ -1,0 +1,50 @@
+#! /usr/bin/env node
+/**
+ * @file     sparse-islands.simple
+ *           Runs of elements inside sparse arrays keep their types and identities.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const shared = { z: 1 };
+const a = [];
+a[5] = new Date(0);
+a[6] = NaN;
+a[7] = undefined;
+a[8] = shared;
+a[20] = 'x';
+a[21] = 2;
+a[30] = shared;
+a[40] = { lone: true };
+a[50] = shared;
+a[51] = shared;
+a[60] = [shared];
+
+const r = kvin.deserialize(kvin.serialize([a, shared]));
+const [A, S] = r;
+assert.strictEqual(A.length, a.length);
+assert.deepStrictEqual(Object.keys(A), Object.keys(a));
+assert(A[5] instanceof Date && A[5].getTime() === 0);
+assert(Number.isNaN(A[6]));
+assert(7 in A && A[7] === undefined);
+assert.strictEqual(A[20], 'x');
+assert.strictEqual(A[21], 2);
+assert.deepStrictEqual(A[40], { lone: true });
+for (const el of [A[8], A[30], A[50], A[51], A[60][0]])
+  assert.strictEqual(el, S);
+
+/* a lone element below a run, with both referenced again later */
+const lone = { lone: 1 };
+const inRun = { run: 1 };
+const b = [];
+b[3] = lone;
+b[10] = inRun;
+b[11] = 0;
+b.named = lone;
+const [B, L, R] = kvin.deserialize(kvin.serialize([b, lone, inRun]));
+assert.strictEqual(B[3], L);
+assert.strictEqual(B.named, L);
+assert.strictEqual(B[10], R);
+assert.deepStrictEqual([L, R], [lone, inRun]);
+
+console.log('pass');
