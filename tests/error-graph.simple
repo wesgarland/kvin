@@ -1,0 +1,31 @@
+#! /usr/bin/env node
+/**
+ * @file     error-graph.simple
+ *           Errors: own properties of any type round-trip, and values after an Error in the
+ *           object graph keep their identity.
+ */
+const assert = require('assert');
+const kvin = require('../kvin');
+
+const shared = { z: 1 };
+const r = kvin.deserialize(kvin.serialize([new Error('e'), shared, shared]));
+assert(r[0] instanceof Error);
+assert.strictEqual(r[1], r[2]);
+assert.deepStrictEqual(r[2], { z: 1 });
+
+const e = new Error('outer', { cause: new Error('inner') });
+e.details = { a: [1, 2] };
+e.code = null;
+e.when = new Date(0);
+e.self = e;
+e.shared = shared;
+const [E, S] = kvin.deserialize(kvin.serialize([e, shared]));
+assert.strictEqual(E.message, 'outer');
+assert.deepStrictEqual(E.details, { a: [1, 2] });
+assert.strictEqual(E.code, null);
+assert(E.when instanceof Date && E.when.getTime() === 0);
+assert.strictEqual(E.self, E);
+assert.strictEqual(E.shared, S);
+assert.strictEqual(E.cause.message, 'inner');
+
+console.log('pass');
